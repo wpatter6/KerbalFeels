@@ -19,6 +19,8 @@ namespace KerbalFeels
         private const double _goodSanityModifier = .2;
         private const double _badSanityModifier = .2;
 
+        private const float _stupidityDivisor = 2;//used to change the effect of stupidity difference on feelings
+        private const float _courageDivisor = 1;//used to change the effect of courage difference on feelings
 
         private const int _precision = 4;
         private const float _randomMultiplier = 2;//How much RNG affects feels change
@@ -54,12 +56,12 @@ namespace KerbalFeels
         }
 
         //returns a number between -x and x to indicate impact, may need tweaking
-        public static double CalculateCrewImpact(Feels feel, ProtoCrewMember crewMember1, ProtoCrewMember crewMember2, double sanity)
+        public static double CalculateCrewImpact(ProtoCrewMember crewMember1, ProtoCrewMember crewMember2, double sanity)
         {
             KFUtil.Log("CalculateCrewImpact");
 
-            Single intDiff = Math.Abs(crewMember1.stupidity - crewMember2.stupidity) * _personalityMultiplier,//if number is positive, crewMember1 is smarter.  The bigger the difference the more negative impact
-                courageDiff = (crewMember1.courage - crewMember2.courage) * _personalityMultiplier;//larger number more negative impact; smaller, positive
+            Single intDiff = Math.Abs(crewMember1.stupidity - crewMember2.stupidity) / _stupidityDivisor * _personalityMultiplier,//if number is positive, crewMember1 is smarter.  The bigger the difference the more negative impact
+                courageDiff = (crewMember1.courage - crewMember2.courage) / _courageDivisor * _personalityMultiplier;//larger number more negative impact; smaller, positive
 
             KFUtil.Log("intDiff: " + intDiff.ToString());
             KFUtil.Log("courageDiff: " + courageDiff.ToString());
@@ -75,15 +77,15 @@ namespace KerbalFeels
         {
             KFUtil.Log("GetFeels");
 
-            if (!node.HasNode(KFUtil.GetFirstName(crewMember1))) return new Feels();
+            if (!node.HasNode(KFUtil.GetFirstName(crewMember1))) return new Feels(KFUtil.GetFirstName(crewMember1), KFUtil.GetFirstName(crewMember2));
 
             var crewNode = node.GetNode(KFUtil.GetFirstName(crewMember1));
 
-            if (!crewNode.HasNode(KFUtil.GetFirstName(crewMember2))) return new Feels();
+            if (!crewNode.HasNode(KFUtil.GetFirstName(crewMember2))) return new Feels(KFUtil.GetFirstName(crewMember1), KFUtil.GetFirstName(crewMember2));
 
             var feelNode = crewNode.GetNode(KFUtil.GetFirstName(crewMember2));
 
-            if (!feelNode.HasValue("num") || !feelNode.HasValue("type")) return new Feels();
+            if (!feelNode.HasValue("num") || !feelNode.HasValue("type")) return new Feels(KFUtil.GetFirstName(crewMember1), KFUtil.GetFirstName(crewMember2));
 
             return new Feels(KFUtil.GetFirstName(crewMember1), KFUtil.GetFirstName(crewMember2), Convert.ToDouble(feelNode.GetValue("num")), (FeelingTypes)Convert.ToInt32(feelNode.GetValue("type")));
         }
@@ -95,7 +97,7 @@ namespace KerbalFeels
 
             var feel = GetFeels(node, crewMember1, crewMember2);
             var oldFeel = feel;
-            var impact = CalculateCrewImpact(feel, crewMember1, crewMember2, sanity);
+            var impact = CalculateCrewImpact(crewMember1, crewMember2, sanity);
 
             KFUtil.Log("impact: " + impact.ToString());
 
@@ -126,25 +128,17 @@ namespace KerbalFeels
 
             if (node.HasNode(KFUtil.GetFirstName(crewMember1)))
                 crewNode = node.GetNode(KFUtil.GetFirstName(crewMember1));
-
-            if (crewNode != null)
-            {
-                if (crewNode.HasNode(KFUtil.GetFirstName(crewMember2)))
-                    feelNode = crewNode.GetNode(KFUtil.GetFirstName(crewMember2));
-            }
             else
-            {
                 crewNode = node.AddNode(KFUtil.GetFirstName(crewMember1));
-            }
 
-            if (feelNode == null)
-            {
+            if (crewNode.HasNode(KFUtil.GetFirstName(crewMember2)))
+                feelNode = crewNode.GetNode(KFUtil.GetFirstName(crewMember2));
+            else 
                 feelNode = crewNode.AddNode(KFUtil.GetFirstName(crewMember2));
-            }
 
 
             KFUtil.Log("num: " + feel.Number.ToString("G"));
-            KFUtil.Log("type: " + ((int)feel.Type).ToString());
+            KFUtil.Log("type: " + feel.Type.ToString());
 
 
             if (feelNode.HasValue("num"))
@@ -162,7 +156,7 @@ namespace KerbalFeels
         //Sets the kerbal's altered base stats based on who they're in a vessel with
         public static void DetermineVesselCrewInfo(string vesselId, List<ProtoCrewMember> crew)
         {
-            var isNew = true;
+            KFUtil.Log("DetermineVesselCrewInfo");
             var flightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
             var crewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
 
@@ -184,55 +178,54 @@ namespace KerbalFeels
                 if (!fcnode.HasValue("startTime"))
                     fcnode.AddValue("startTime", HighLogic.CurrentGame.UniversalTime);
 
-                if (!isNew)//has existing feels
-                    foreach (ProtoCrewMember crewMember2 in crew2)
-                    {
-                        if (crewMember1.name != crewMember2.name && !fcnode.HasNode(KFUtil.GetFirstName(crewMember2)))
-                        {//Determine their modifier for the current flight & store so it can be switched back when they are separated again.
-                            Feels f = KFCalc.GetFeels(crewNode, crewMember1, crewMember2);
-                            var changeNode = fcnode.AddNode(KFUtil.GetFirstName(crewMember2));
+                foreach (ProtoCrewMember crewMember2 in crew2)
+                {
+                    if (crewNode.HasNode(KFUtil.GetFirstName(crewMember1)) && crewMember1.name != crewMember2.name && !fcnode.HasNode(KFUtil.GetFirstName(crewMember2)))
+                    {//Determine their modifier for the current flight & store so it can be switched back when they are separated again.
+                        Feels f = KFCalc.GetFeels(crewNode, crewMember1, crewMember2);
+                        var changeNode = fcnode.AddNode(KFUtil.GetFirstName(crewMember2));
 
-                            float stupidityChange = _defaultStupidityChange, courageChange = _defaultCourageChange;
-                            int expChange = _defaultExpChange;
+                        float stupidityChange = _defaultStupidityChange, courageChange = _defaultCourageChange;
+                        int expChange = _defaultExpChange;
 
-                            switch (f.Type)
-                            {
-                                case FeelingTypes.Hateful://-1 level,raises stupidity and courage, can trigger a murder (maybe? todo)
-                                    expChange *= -1;
-                                    CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
-                                    break;
-                                case FeelingTypes.Bored://-1 level,raises stupidity
-                                    courageChange = 0;
-                                    expChange *= -1;
-                                    CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
-                                    break;
-                                case FeelingTypes.Scared://-1 level, lowers courage
-                                    stupidityChange = 0;
-                                    courageChange *= -1;
-                                    expChange *= -1;
-                                    CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
-                                    break;
-                                case FeelingTypes.Playful://+1 level, raises stupditiy, reduces experience gained (maybe? todo)
-                                    courageChange = 0;
-                                    CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
-                                    break;
-                                case FeelingTypes.InLove://+1 level,raises stupidity and courage
-                                    CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
-                                    break;
-                                case FeelingTypes.Inspired://+1 level, lowers stupidity, raises experience gained (maybe? todo)
-                                    stupidityChange *= -1;
-                                    courageChange = 0;
-                                    CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
-                                    break;
-                                case FeelingTypes.Indifferent:
-                                    courageChange = stupidityChange = expChange = 0;
-                                    break;
-                            }
-                            changeNode.AddValue("courage", courageChange);
-                            changeNode.AddValue("stupidity", stupidityChange);
-                            changeNode.AddValue("experience", expChange);
+                        switch (f.Type)
+                        {
+                            case FeelingTypes.Hateful://-1 level,raises stupidity and courage, can trigger a murder (maybe? todo)
+                                expChange *= -1;
+                                CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
+                                break;
+                            case FeelingTypes.Annoyed://-1 level,raises stupidity
+                                courageChange = 0;
+                                expChange *= -1;
+                                CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
+                                break;
+                            case FeelingTypes.Scared://-1 level, lowers courage
+                                stupidityChange = 0;
+                                courageChange *= -1;
+                                expChange *= -1;
+                                CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
+                                break;
+                            case FeelingTypes.Playful://+1 level, raises stupditiy, reduces experience gained (maybe? todo)
+                                courageChange = 0;
+                                CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
+                                break;
+                            case FeelingTypes.InLove://+1 level,raises stupidity and courage
+                                CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
+                                break;
+                            case FeelingTypes.Inspired://+1 level, lowers stupidity, raises experience gained (maybe? todo)
+                                stupidityChange *= -1;
+                                courageChange = 0;
+                                CrewMemberStatChange(crewMember1, ref courageChange, ref stupidityChange, ref expChange);
+                                break;
+                            case FeelingTypes.Indifferent:
+                                courageChange = stupidityChange = expChange = 0;
+                                break;
                         }
+                        changeNode.AddValue("courage", courageChange);
+                        changeNode.AddValue("stupidity", stupidityChange);
+                        changeNode.AddValue("experience", expChange);
                     }
+                }
             }
             //KFUtil.Log("flightNode:" + flightNode.ToString());
             //KFUtil.Log("_flightsDbSaveFileName:" + _flightsDbSaveFileNameAndPath);
@@ -317,9 +310,14 @@ namespace KerbalFeels
         //Calculate feels values for crew members in the vessel
         public static List<FeelsChange> CalculateVesselCrewStats(String vesselId, List<ProtoCrewMember> crew, bool removeVessel = false)
         {
+            KFUtil.Log("CalculateVesselCrewStats");
             var changes = new List<FeelsChange>();
             var flightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
             var crewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
+
+
+            KFUtil.Log(flightNode);
+            KFUtil.Log(crewNode);
 
             if (flightNode.HasNode(vesselId))
             {
@@ -328,7 +326,9 @@ namespace KerbalFeels
                 var crew3 = new List<ProtoCrewMember>(crew);
                 foreach (ProtoCrewMember member in crew)
                 {
+                    KFUtil.Log("Calculating stats for " + KFUtil.GetFirstName(member));
                     var timeSpent = HighLogic.CurrentGame.UniversalTime - Convert.ToDouble(vesselNode.GetNode(KFUtil.GetFirstName(member)).GetValue("startTime"));
+
                     var sanity = CalculateSanity(member, crew3, crewNode, timeSpent);
 
                     changes.AddRange(CalculateCrewStats(member, crew2, vesselNode, crewNode, sanity));

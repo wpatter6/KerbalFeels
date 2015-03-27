@@ -15,23 +15,10 @@ namespace KerbalFeels
     class KFEvents
     {
         private bool _initialized = false;
-        //private string _crewDbSaveFileName;
-        //private string _crewDbSaveFileNameAndPath;
-        //private string _flightsDbSaveFileName;
-        //private string _flightsDbSaveFileNameAndPath;
 
         public KFEvents()
         {
         }
-
-        //public KerbalFeelsEvents(string crewFileName, string flightsFileName, string crewFileFullPath, string flightsFileFullPath)
-        //{
-        //    _crewDbSaveFileName = crewFileName;
-        //    _crewDbSaveFileNameAndPath = crewFileFullPath;
-        //    _flightsDbSaveFileName = flightsFileName;
-        //    _flightsDbSaveFileNameAndPath = flightsFileFullPath;
-        //}
-
         public void InitializeEvents()
         {
             if (_initialized) return;
@@ -45,57 +32,60 @@ namespace KerbalFeels
             GameEvents.onCrewKilled.Add(new EventData<EventReport>.OnEvent(OnCrewKilled));
             GameEvents.onGameStateSave.Add(new EventData<ConfigNode>.OnEvent(OnGameStateSave));
             GameEvents.onGameStateLoad.Add(new EventData<ConfigNode>.OnEvent(OnGameStateLoad));
-            GameEvents.onCrash.Add(new EventData<EventReport>.OnEvent(OnCrash));
+            //GameEvents.onCrash.Add(new EventData<EventReport>.OnEvent(OnCrash));
             _initialized = true;
         }
 
         #region event handlers
-        private void OnCrash(EventReport data)
-        {
-            KFUtil.Log("OnCrash");
-            KFUtil.Log(data.eventType.ToString());
-            if (data.origin != null && data.origin.vessel != null)
-                KFCalc.RemoveVessel(data.origin.vessel.id.ToString(), data.origin.vessel.GetVesselCrew());
-        }
+        //private void OnCrash(EventReport data)
+        //{
+        //    KFUtil.Log("OnCrash");
+        //    KFUtil.Log(data.eventType.ToString());
+        //    if (data.origin != null && data.origin.vessel != null)
+        //        KFCalc.RemoveVessel(data.origin.vessel.id.ToString(), data.origin.vessel.GetVesselCrew());
+        //}
 
         private void OnGameStateLoad(ConfigNode data)
         {
-            //KFUtil.Log("OnGameStateLoad");
+            KFUtil.Log("OnGameStateLoad");
 
-            //if (data.HasNode("FEELS"))
-            //{
-            //    var feelsNode = data.GetNode("FEELS");
+            if (data.HasNode("FEELS"))
+            {
+                var feelsNode = data.GetNode("FEELS");
 
-            //    if (feelsNode.HasNode("CREW"))
-            //    {
-            //        var crewNode = feelsNode.GetNode("CREW");
-            //        crewNode.Save(_crewDbSaveFileNameAndPath);
-            //    }
-            //    if (feelsNode.HasNode("FLIGHTS"))
-            //    {
-            //        var flightsNode = feelsNode.GetNode("FLIGHTS");
-            //        flightsNode.Save(_flightsDbSaveFileNameAndPath);
-            //    }
-            //}
+                if (feelsNode.HasNode("CREW"))
+                {
+                    var crewNode = feelsNode.GetNode("CREW");
+                    KFUtil.SetConfigNode("CREW", crewNode);
+                    //crewNode.Save(_crewDbSaveFileNameAndPath);
+                }
+                if (feelsNode.HasNode("FLIGHTS"))
+                {
+                    var flightsNode = feelsNode.GetNode("FLIGHTS");
+                    KFUtil.SetConfigNode("FLIGHTS", flightsNode);
+
+                    //flightsNode.Save(_flightsDbSaveFileNameAndPath);
+                }
+            }
         }
 
         private void OnGameStateSave(ConfigNode data)
         {
-            //KFUtil.Log("OnGameStateSave");
+            KFUtil.Log("OnGameStateSave");
 
-            //ConfigNode feelNode;
-            //if (data.HasNode("FEELS"))
-            //    data.RemoveNode("FEELS");
+            ConfigNode feelNode;
+            if (data.HasNode("FEELS"))
+                data.RemoveNode("FEELS");
 
-            //feelNode = data.AddNode("FEELS");
+            feelNode = data.AddNode("FEELS");
 
-            //var crewNode = KFUtil.GetConfigNode(_crewDbSaveFileName, this.GetType());
-            //crewNode.name = "CREW";
-            //var flightNode = KFUtil.GetConfigNode(_flightsDbSaveFileName, this.GetType());
-            //flightNode.name = "FLIGHTS";
+            var crewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
+            crewNode.name = "CREW";
+            var flightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
+            flightNode.name = "FLIGHTS";
 
-            //feelNode.AddNode(crewNode);
-            //feelNode.AddNode(flightNode);
+            feelNode.AddNode(crewNode);
+            feelNode.AddNode(flightNode);
         }
 
         private void OnVesselGoOffRails(Vessel data)
@@ -135,7 +125,7 @@ namespace KerbalFeels
         {
             KFUtil.Log("OnVesselRecoveryProcessing");
             var c = KFCalc.CalculateVesselCrewStats(data0, true);
-            c.Sort((x, y) => x.NewFeel.CrewMember.CompareTo(y.NewFeel.CrewMember));
+            //c.Sort((x, y) => x.NewFeel.CrewMember.CompareTo(y.NewFeel.CrewMember));
 
             if(HighLogic.CurrentGame.config.HasNode("FEELS_CHANGE_TEXT"))
                 HighLogic.CurrentGame.config.RemoveNode("FEELS_CHANGE_TEXT");
@@ -145,7 +135,10 @@ namespace KerbalFeels
             foreach (FeelsChange change in c)
             {
                 var subnode = node.AddNode("TEXT");
-                subnode.AddValue("value", KFUtil.GetFeelsChangeText(change));                
+                var text = KFUtil.GetFeelsChangeText(change);
+
+                KFUtil.Log(text);
+                subnode.AddValue("value", text);                
             }
 
             if (c.Count > 0)
@@ -167,9 +160,6 @@ namespace KerbalFeels
         {//todo some kind of gui?
             KFUtil.Log("OnGUIAstronautComplexSpawn");
         }
-        #endregion
-
-        #region reusable methods
         #endregion
     }
 }

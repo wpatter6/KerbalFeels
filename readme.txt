@@ -1,4 +1,4 @@
-This is a mod for Kerbal Space Program which will add a new element to the game of interpersonal relationships between kerbals.
+KerbalFeels is a mod for Kerbal Space Program which will add a new element to the game of interpersonal relationships between kerbals.
 
 Based on the different personalities of the kerbals (and RNG) kerbals will like or dislike each other after spending time alone with each other in spacecraft.
 
