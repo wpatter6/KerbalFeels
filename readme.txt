@@ -16,7 +16,7 @@ Negative traits give -1 experience level:
 
 Kerbals also have a certain amount of "sanity" which will depreciate over longer missions.  Sanity will impact the amount that RNG impacts their feelings towards the other kerbals.
 
-Right now the only GUI that you will see is when a ship is recovered, you will be informed of 
+Right now the only GUI that you will see is when a ship is recovered, you will be informed of the kerbals changing feelings towards each other at the end of every mission.
 
 Things on the to do list:
 - Feelings impact the amount of experience gained from a mission (inspired gives more xp, playful gives less)
