@@ -22,8 +22,9 @@ Things on the to do list:
 - Feelings impact the amount of experience gained from a mission (inspired gives more xp, playful gives less)
 - Kerbacide! Will happen with negative feelings + lack of sanity + RNG
 - Parts ideas: 
-	Rec center for space stations will reduce negative feelings all around
-	brain scan gives science and also
+	Rec center for space stations will reduce negative feelings all around and improve sanity
+	Brain scan gives science and is either affected by or has effects on kerbal's sanity
+- Tweaking to constant variables after testing and/or feedback
 	
 ----
 To Install:
