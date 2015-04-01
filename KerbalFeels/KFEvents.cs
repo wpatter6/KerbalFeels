@@ -29,22 +29,14 @@ namespace KerbalFeels
             GameEvents.onPartUndock.Add(new EventData<Part>.OnEvent(OnPartUndock));
             GameEvents.onVesselGoOffRails.Add(new EventData<Vessel>.OnEvent(OnVesselGoOffRails));
             GameEvents.onCrewOnEva.Add(new EventData<GameEvents.FromToAction<Part, Part>>.OnEvent(OnCrewOnEva));
-            GameEvents.onCrewKilled.Add(new EventData<EventReport>.OnEvent(OnCrewKilled));
             GameEvents.onGameStateSave.Add(new EventData<ConfigNode>.OnEvent(OnGameStateSave));
             GameEvents.onGameStateLoad.Add(new EventData<ConfigNode>.OnEvent(OnGameStateLoad));
-            //GameEvents.onCrash.Add(new EventData<EventReport>.OnEvent(OnCrash));
+            GameEvents.OnProgressComplete.Add(new EventData<ProgressNode>.OnEvent(OnProgressComplete));
+            
             _initialized = true;
         }
 
         #region event handlers
-        //private void OnCrash(EventReport data)
-        //{
-        //    KFUtil.Log("OnCrash");
-        //    KFUtil.Log(data.eventType.ToString());
-        //    if (data.origin != null && data.origin.vessel != null)
-        //        KFCalc.RemoveVessel(data.origin.vessel.id.ToString(), data.origin.vessel.GetVesselCrew());
-        //}
-
         private void OnGameStateLoad(ConfigNode data)
         {
             KFUtil.Log("OnGameStateLoad");
@@ -91,22 +83,34 @@ namespace KerbalFeels
         private void OnVesselGoOffRails(Vessel data)
         {
             KFUtil.Log("OnVesselGoOffRails");
+            var flightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
+
+            foreach (ProtoCrewMember member in data.GetVesselCrew())
+            {
+                KFCalc.CheckDeathEffects(member);
+            }
+
+            if(flightNode.HasNode(data.id.ToString()))
+            {
+                KFCalc.CalculateVesselChangedCrewInfo(data);
+            }
 
             KFCalc.DetermineVesselCrewInfo(data);
+        }
+
+        private void OnProgressComplete(ProgressNode data)
+        {
+            
         }
 
         private void OnCrewOnEva(GameEvents.FromToAction<Part, Part> data)
         {
             KFUtil.Log("OnCrewOnEva");
 
-            if (data.from != null && data.from.vessel != null)
-                KFCalc.CalculateVesselChangedCrewInfoDelta(data.from.vessel);
-        }
+            //data.to.addChild(new KFEvaModule());
 
-        private void OnCrewKilled(EventReport data)
-        {//todo lower the courage & level of kerbals who had positive feels towards killed crew member -- need to somehow align with "revert"
-            KFUtil.Log("OnCrewKilled");
-            KFUtil.Log(data.msg);
+            if (data.from != null && data.from.vessel != null)
+                KFCalc.CalculateVesselChangedCrewInfo(data.from.vessel);
         }
 
         private void OnPartUndock(Part data)
@@ -118,6 +122,7 @@ namespace KerbalFeels
         private void OnCrewBoardVessel(GameEvents.FromToAction<Part, Part> data)
         {
             KFUtil.Log("OnCrewBoardVessel");
+            KFCalc.CalculateVesselChangedCrewInfo(data.to.vessel);
             KFCalc.DetermineVesselCrewInfo(data.to.vessel);
         }
 
@@ -127,38 +132,31 @@ namespace KerbalFeels
             var c = KFCalc.CalculateVesselCrewStats(data0, true);
             //c.Sort((x, y) => x.NewFeel.CrewMember.CompareTo(y.NewFeel.CrewMember));
 
-            if(HighLogic.CurrentGame.config.HasNode("FEELS_CHANGE_TEXT"))
-                HighLogic.CurrentGame.config.RemoveNode("FEELS_CHANGE_TEXT");
-
-            var node = HighLogic.CurrentGame.config.AddNode("FEELS_CHANGE_TEXT");
+            List<string> strs = new List<string>();
 
             foreach (FeelsChange change in c)
             {
-                var subnode = node.AddNode("TEXT");
-                var text = KFUtil.GetFeelsChangeText(change);
-
-                KFUtil.Log(text);
-                subnode.AddValue("value", text);                
+                strs.Add(KFUtil.GetFeelsChangeText(change));              
             }
 
             if (c.Count > 0)
             {
-                KFUtil.Log("RenderingManager.AddToPostDrawQueue");
-                RenderingManager.AddToPostDrawQueue(0, KFUtil.OnDrawGUI);
+                new KFGUI().ShowGuiDialog(strs.ToArray());
             }
         }
 
         private void OnKerbalStatusChange(ProtoCrewMember data0, ProtoCrewMember.RosterStatus data1, ProtoCrewMember.RosterStatus data2)
         {
-            KFUtil.Log("OnKerbalStatusChange");
-            KFUtil.Log("data0: " + data0.ToString());
-            KFUtil.Log("data1: " + data1.ToString());
-            KFUtil.Log("data2: " + data2.ToString());
+            if (data2 == ProtoCrewMember.RosterStatus.Dead || data2 == ProtoCrewMember.RosterStatus.Missing)
+            {
+                KFDeath.DoDeath(data0);
+            }
         }
 
         private void OnGUIAstronautComplexSpawn()
         {//todo some kind of gui?
             KFUtil.Log("OnGUIAstronautComplexSpawn");
+            //KFGUI.ShowFullCrewDialog();
         }
         #endregion
     }

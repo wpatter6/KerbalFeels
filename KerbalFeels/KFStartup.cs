@@ -3,14 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
-using KSP.IO;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
-using File = KSP.IO.File;
-
-//using System.Data.SQLite;
-//using Newtonsoft.Json.Linq;
 
 namespace KerbalFeels
 {
@@ -18,34 +11,75 @@ namespace KerbalFeels
     [KSPAddon(KSPAddon.Startup.Instantly, true)]
     class KFStartup : MonoBehaviour
     {
-        private string _saveFolderName;
+        bool _appLauncherInit = false;
+        ApplicationLauncherButton _appButton = null;
+        KFGUI _gui;
 
         public void Awake()
         {
-            KFUtil.Log("Awake");
-            //if (_saveFolderName == HighLogic.SaveFolder) return;//we've initialized for this save already
+            KFUtil.Log("Instantly Awake");
 
-            //List<char> invalidChars = new List<char>(Path.GetInvalidFileNameChars());
-            //invalidChars.Add(' ');
-
-            //_saveFolderName = HighLogic.SaveFolder;
-
-
-            //var crewDbSaveFileName = String.Format("{0}{1}{2}", "KF_crew_", new string(HighLogic.SaveFolder.Where(x => !invalidChars.Contains(x)).ToArray()), ".cfg");
-            //var flightsDbSaveFileName = String.Format("{0}{1}{2}", "KF_flights_", new string(HighLogic.SaveFolder.Where(x => !invalidChars.Contains(x)).ToArray()), ".cfg");
-
-            //var flightsDbSaveFileNameAndPath = IOUtils.GetFilePathFor(this.GetType(), flightsDbSaveFileName);
-            //var crewDbSaveFileNameAndPath = IOUtils.GetFilePathFor(this.GetType(), crewDbSaveFileName);
-
-            //var eventsHandler = new KerbalFeelsEvents(crewDbSaveFileName, flightsDbSaveFileName, crewDbSaveFileNameAndPath, flightsDbSaveFileNameAndPath);
             var eventsHandler = new KFEvents();
             eventsHandler.InitializeEvents();
-            //RenderingManager.AddToPostDrawQueue(0, OnDrawGUI);
+
+            _gui = new KFGUI();
+            GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
+            KFConfig.Init();
         }
 
+        private void OnGUIAppLauncherReady()
+        {
+            if (!_appLauncherInit)
+            {
+                KFUtil.Log("OnGUIAppLauncherReady");
+                if (ApplicationLauncher.Ready)
+                {
+                    _appButton = ApplicationLauncher.Instance.AddModApplication(
+                        onAppLaunchToggleOn,
+                        onAppLaunchToggleOff,
+                        onAppLaunchHoverOn,
+                        onAppLaunchHoverOff,
+                        onAppLaunchEnable,
+                        onAppLaunchDisable,
+                        ApplicationLauncher.AppScenes.ALWAYS,
+                        (Texture)GameDatabase.Instance.GetTexture("KerbalFeels/Icons/KFIcon", true)
+                    );
+                    _appLauncherInit = true;
+                }
+            }
+        }
+
+        private void onAppLaunchDisable() { }
+        private void onAppLaunchEnable() { }
+        private void onAppLaunchHoverOff() { }
+        private void onAppLaunchHoverOn() { }
+        private void onAppLaunchToggleOff() { _gui.Hide();  }
+        private void onAppLaunchToggleOn() 
+        {
+            _gui.ShowCrewDialog(FlightGlobals.ActiveVessel);
+        }
+    }
+
+    [KSPAddon(KSPAddon.Startup.SpaceCentre, true)]
+    class KFGameStartup : MonoBehaviour
+    {
+        private KFGUI _gui;
+        private bool _init = false;
         public void Start()
         {
-            KFUtil.Log("Start");
+            KFUtil.Log("SpaceCentre Start");
+
+            if (!_init)
+            {
+                _gui = new KFGUI();
+                var repeater = new KFRepeater();
+                repeater.BeginRepeatingCheck();
+
+                _init = true;
+
+            }
+
+            //_gui.ShowCrewDialog();
         }
     }
 }

@@ -49,7 +49,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="KFCalc.cs" />
+    <Compile Include="KFConfig.cs" />
     <Compile Include="KFEvents.cs" />
+    <Compile Include="KFDeath.cs" />
+    <Compile Include="KFGUI.cs" />
+    <Compile Include="KFParts.cs" />
+    <Compile Include="KFRepeater.cs" />
     <Compile Include="KFStartup.cs" />
     <Compile Include="KFUtil.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

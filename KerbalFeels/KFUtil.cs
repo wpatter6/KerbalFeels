@@ -40,7 +40,9 @@ namespace KerbalFeels
         #region general util
         public static string GetFirstName(String name)
         {
-            return name.Substring(0, name.IndexOf(' '));
+            int ix = name.IndexOf(' ');
+            if (ix == -1) return name;
+            return name.Substring(0, ix);
         }
 
         public static string GetFirstName(ProtoCrewMember crewMember)
@@ -50,9 +52,9 @@ namespace KerbalFeels
 
         public static string GetFeelsChangeText(FeelsChange change)
         {
-            String str = String.Format("{0} likes {1} {2}", change.NewFeel.CrewMember, change.NewFeel.ToCrewMember, GetFeelsChangeBasicText(change.NewFeel.Number - change.OldFeel.Number));;
+            String str = String.Format("{0} likes {1} {2}", change.NewFeel.CrewMember, change.NewFeel.ToCrewMember, GetFeelsChangeBasicText(change.TotalChange));;
 
-            if (change.OldFeel.Type != change.NewFeel.Type)
+            if (Math.Abs(change.NewFeel.Number - change.TotalChange) < KFConfig.FeelThreshold && change.NewFeel.Number > KFConfig.FeelThreshold)
             {
                 str += " and is now ";
                 switch (change.NewFeel.Type)
@@ -133,43 +135,7 @@ namespace KerbalFeels
         #endregion
         
         #region gui
-        private static Rect windowPosition = new Rect(150, 150, 300, 240);
-        private static GUIStyle guiStyle = null;
-
-        public static void OnDrawGUI()
-        {
-            Log("OnDrawGUI");
-            guiStyle = new GUIStyle(HighLogic.Skin.window);
-            windowPosition = GUI.Window(1, windowPosition, FeelsChangedWindowGUI, "Kerbal Feels", guiStyle);
-        }
-
-        public static void FeelsChangedWindowGUI(int WindowID)
-        {
-            if (HighLogic.CurrentGame.config.HasNode("FEELS_CHANGE_TEXT"))
-            {
-                var text = HighLogic.CurrentGame.config.GetNode("FEELS_CHANGE_TEXT");
-
-                if (text.HasNode("TEXT"))
-                {
-                    GUILayout.BeginVertical();
-
-                    foreach (ConfigNode node in text.nodes)
-                    {
-                        string str = node.GetValue("value");
-                        GUILayout.Label(str);
-                    }
-
-                    if (GUILayout.Button("Ok", guiStyle, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(false)))//GUILayout.Button is "true" when clicked
-                    {
-                        RenderingManager.RemoveFromPostDrawQueue(0, OnDrawGUI);
-                    }
-
-                    GUILayout.EndVertical();
-
-                    GUI.DragWindow(new Rect(0, 0, 10000, 20));
-                }
-            }
-        }
+        
 
         #endregion 
         
@@ -177,11 +143,13 @@ namespace KerbalFeels
 
     public struct FeelsChange
     {
+        public double TotalChange;
         public Feels OldFeel;
         public Feels NewFeel;
 
-        public FeelsChange(Feels oldFeel = new Feels(), Feels newFeel = new Feels())
+        public FeelsChange(double totalChange, Feels oldFeel = new Feels(), Feels newFeel = new Feels())
         {
+            TotalChange = totalChange;
             OldFeel = oldFeel;
             NewFeel = newFeel;
         }
@@ -204,14 +172,22 @@ namespace KerbalFeels
     }
 
     //negative values will lower the kerbal's level by one, positive will raise by one.
+    //Larger absolute values mean more impact on death
     public enum FeelingTypes
     {
         Hateful = -3,//raises stupidity and courage, can trigger a murder (maybe?)
-        Annoyed = -2,//raises stupidity
-        Scared = -1,//lowers courage
+        Scared = -2,//lowers courage
+        Annoyed = -1,//raises stupidity
         Indifferent = 0,//does nothing
         Playful = 1,//reduces experience gained (maybe?)
-        InLove = 2,//raises stupidity and courage
-        Inspired = 3//raises experience gained (maybe?)
-    } 
+        Inspired = 2,//raises experience gained (maybe?)
+        InLove = 3//raises stupidity and courage
+    }
+
+    public enum VerdictTypes
+    {
+        Innocent,
+        Guilty,
+        CapitalPunishment
+    }
 }
