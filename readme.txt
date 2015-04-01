@@ -41,4 +41,13 @@ If a Kerbal's sanity drops too low, there is a small chance they will commit sui
 
 If a murder occurs, the rest of the crew's feelings towards the attacker will be tallied and they will either let the killer go free, "arrest" them (they will appear as missing), or execute the attacker on the spot, depending on how the group as a whole feels about the attacker.
 
+Death of a kerbal will result in a loss of courage for kerbals who had positive feelings toward them.  If their courage drops to 0 and they witnessed the death they will lose an experience level.  These effects last for a random amount of time between 7 days and 6 months depending on what feeling they had towards the kerbal who died.
+
 The GUI is accessable through the Toolbar icon (shaped like a heart) and will show the kerbals and their statistics, as well as their feelings towards other kerbals.
+
+Todo List:
+-Parts ideas:
+-- Recreational/Athletic/general activity parts for ships and space stations will reduce negative feelings and improve (or possibly even reduce) the crew's sanity
+-- Brain scan gives science and is either affected by or has effects on kerbal's sanity -- I think it would be neat if you could get more science if your kerbal is less sane, but not sure how feasable that is
+-Feelings impact the amount of experience gained from a mission (inspired and hateful give more xp; playful and annoyed give less)
+-Tweaking to constant variables after feedback
