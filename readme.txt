@@ -1,34 +1,8 @@
-KerbalFeels is a mod for Kerbal Space Program which will add a new element to the game of interpersonal relationships between kerbals.
-
-Based on the different personalities of the kerbals (and RNG) kerbals will like or dislike each other after spending time alone with each other in spacecraft.
-
-Once they reach a certain threshold of liking (or disliking) another kerbal, they will gain a certain "feeling" towards the other kerbal. When they are on a mission, they will gain or lose personality traits and experience levels based on their feelings towards the other kerbals on their mission.  These feelings are:
-
-Positive traits give +1 experience level:
-- Playful: Raises stupidity
-- In Love: Raises stupidity and courage
-- Inspired: Lowers stupidity
-
-Negative traits give -1 experience level:
-- Scared
-- Annoyed
-- Hateful
-
-Kerbals also have a certain amount of "sanity" which will depreciate over longer missions.  Sanity will impact the amount that RNG impacts their feelings towards the other kerbals.
-
-Right now the only GUI that you will see is when a ship is recovered, you will be informed of the kerbals changing feelings towards each other at the end of every mission.
-
-Things on the to do list:
-- Feelings impact the amount of experience gained from a mission (inspired gives more xp, playful gives less)
-- Kerbacide! Will happen with negative feelings + lack of sanity + RNG
-- Parts ideas: 
-	Rec center for space stations will reduce negative feelings all around and improve sanity
-	Brain scan gives science and is either affected by or has effects on kerbal's sanity
-- Tweaking to constant variables after testing and/or feedback
+This Kerbal Space Program Plugin is in open beta testing.  The various constant variables are stored in the KerbalFeels\Plugins\PluginData\KerbalFeels\KF_Constants.cfg file.  If you feel the default values need tweaking feel free to experiment and let me know the results at forum.kerbalspaceprogram.com, user wpatter6.
 	
 ----
 To Install:
-Download and unzip the KerbalFeels 1.0.0.zip file and copy the KerbalFeels folder into the GameData base folder, and start up KSP.
+Download and unzip the KerbalFeels 0.1.0.zip file and copy the KerbalFeels folder into the GameData base folder, and start up KSP.
 
 ----
 Copyright (c) 2015, wpatter6
@@ -38,3 +12,33 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+----
+Description:
+
+Based on the different personalities of the kerbals (and RNG), kerbals will begin to like or dislike each other after spending time with each other in spacecraft. Kerbals who have very different stupidity levels may be more likely to have negative results, while a non-courageous kerbal may take a quick liking to one who is more courageous (though that feeling may not be reciprocated!)
+
+Once they reach a certain threshold of liking (or disliking) another kerbal, they will gain a "feeling" towards the other kerbal. There are three different positive feelings and three negative feelings which are chosen at random once the threshold is passed. When they are on a mission, they will gain or lose personality traits and experience levels based on their feelings towards the other kerbals on their mission. Feelings change relatively slowly, so it may take more than a few days on a mission together before the kerbals reach the feeling threshold.These feelings are:
+
+Positive traits give +1 experience level:
+
+Playful: Raises stupidity
+In Love: Raises stupidity and courage
+Inspired: Lowers stupidity
+
+
+Negative traits give -1 experience level:
+
+Scared: Lowers courage
+Annoyed: Raises stupidity
+Hateful: Raises stupidity and courage
+
+
+These changes aren't permanent, and are only in effect while the kerbal(s) they have the feelings towards are sharing a vessel with them.
+
+Kerbals also have a certain amount of "sanity" which will depreciate over longer missions. It will go down faster if they have negative feelings towards kerbals in their vessel, and slower if there are more kerbals they feel positively towards in the ship. Lower sanity will increase the amount that RNG impacts their feelings towards the other kerbals at the end of the mission. My goal is for sanity to play a few different roles in the future as well, mentioned below.
+
+If a Kerbal's sanity drops too low, there is a small chance they will commit suicide, or if they're in a vessel with another kerbal whom they have negative feelings towards, there is a chance they will murder the kerbal they dislike.
+
+If a murder occurs, the rest of the crew's feelings towards the attacker will be tallied and they will either let the killer go free, "arrest" them (they will appear as missing), or execute the attacker on the spot, depending on how the group as a whole feels about the attacker.
+
+The GUI is accessable through the Toolbar icon (shaped like a heart) and will show the kerbals and their statistics, as well as their feelings towards other kerbals.
