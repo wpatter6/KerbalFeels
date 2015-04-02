@@ -13,6 +13,7 @@ namespace KerbalFeels
     {
         bool _appLauncherInit = false;
         KFGUI _gui;
+        KFRepeater _repeater;
 
         public void Awake()
         {
@@ -24,6 +25,8 @@ namespace KerbalFeels
             _gui = new KFGUI();
             GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
             KFConfig.Init();
+
+            KFConfig.Repeater = new KFRepeater();
         }
 
         private void OnGUIAppLauncherReady()
@@ -79,23 +82,41 @@ namespace KerbalFeels
     [KSPAddon(KSPAddon.Startup.SpaceCentre, true)]
     class KFGameStartup : MonoBehaviour
     {
-        private KFGUI _gui;
-        private bool _init = false;
+        //private KFGUI _gui;
+        //private bool _init = false;
         public void Start()
         {
             KFUtil.Log("SpaceCentre Start");
+            //KFConfig.Repeater.BeginRepeatingCheck();
 
-            if (!_init)
-            {
-                _gui = new KFGUI();
-                var repeater = new KFRepeater();
-                repeater.BeginRepeatingCheck();
+            //if (!_init)
+            //{
+            //    _gui = new KFGUI();
 
-                _init = true;
-
-            }
+            //    _init = true;
+            //}
 
             //_gui.ShowCrewDialog();
+        }
+    }
+    [KSPAddon(KSPAddon.Startup.TrackingStation, true)]
+    class KFGameTrackingStation : MonoBehaviour
+    {
+        public void Start()
+        {
+            KFUtil.Log("TrackingStation Start");
+            KFUtil.Log("UT: " + KFConfig.CurrentTime);
+            KFConfig.Repeater.BeginRepeatingCheck();
+        }
+    }
+    [KSPAddon(KSPAddon.Startup.Flight, true)]
+    class KFGameFlilght : MonoBehaviour
+    {
+        public void Start()
+        {
+            KFUtil.Log("Flight Start");
+            KFUtil.Log("UT: " + KFConfig.CurrentTime);
+            KFConfig.Repeater.BeginRepeatingCheck();
         }
     }
 }

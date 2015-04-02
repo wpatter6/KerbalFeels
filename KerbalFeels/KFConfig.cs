@@ -115,13 +115,27 @@ namespace KerbalFeels
                 return Convert.ToDouble(GetValue("DurationDivisor"));
             }
         }
-        public static double MaxDuration
+        public static double MaxOpinion
         {
             get
             {
-                return Convert.ToDouble(GetValue("MaxDuration"));
+                return Convert.ToDouble(GetValue("MaxOpinion"));
             }
         }
+        public static double RespawnDelay
+        {
+            get
+            {
+                return Convert.ToDouble(GetValue("RespawnDelay"));
+            }
+        }
+        //public static double MaxDuration
+        //{
+        //    get
+        //    {
+        //        return Convert.ToDouble(GetValue("MaxDuration"));
+        //    }
+        //}
         public static double FeelThreshold
         {
             get
@@ -262,6 +276,16 @@ namespace KerbalFeels
 
         private static ConfigNode config;
 
+        public static double CurrentTime
+        {
+            get
+            {
+                return Planetarium.GetUniversalTime();
+            }
+        }
+
+        public static KFRepeater Repeater;
+
         public static void Init()
         {
             KFUtil.Log("KFConfig.Init");
@@ -287,7 +311,7 @@ namespace KerbalFeels
         #region config file util
         public static object SetValue(string valueName, object value)
         {
-            KFUtil.Log("KFConfig.SetValue");
+            //KFUtil.Log("KFConfig.SetValue");
             if (config.HasValue(valueName)) config.SetValue(valueName, value.ToString());
             else config.AddValue(valueName, value);
             config.Save(IOUtils.GetFilePathFor(typeof(KFConfig), "KF_Constants.cfg"));
@@ -296,7 +320,7 @@ namespace KerbalFeels
 
         public static string GetValue(string valueName)
         {
-            KFUtil.Log("KFConfig.GetValue");
+            //KFUtil.Log("KFConfig.GetValue");
             return config.HasValue(valueName) ? config.GetValue(valueName) : null;
         }
         #endregion
@@ -312,7 +336,7 @@ namespace KerbalFeels
 
         public static ConfigNode GetCurrentGameConfigNode(String name)
         {
-            KFUtil.Log("GetCurrentGameConfigNode");
+            //KFUtil.Log("GetCurrentGameConfigNode");
             var feelsNode = new ConfigNode("FEELS");
 
             if (HighLogic.CurrentGame != null && HighLogic.CurrentGame.config != null)
@@ -329,7 +353,7 @@ namespace KerbalFeels
 
         public static void SetCurrentGameConfigNode(String name, ConfigNode node)
         {
-            KFUtil.Log("SetCurrentGameConfigNode");
+            //KFUtil.Log("SetCurrentGameConfigNode");
             var feelsNode = new ConfigNode();
             if (HighLogic.CurrentGame.config.HasNode("FEELS"))
                 feelsNode = HighLogic.CurrentGame.config.GetNode("FEELS");

@@ -20,6 +20,7 @@ namespace KerbalFeels
 
         private GUIStyle guiStyle = null;
         private GUIStyle LabelStyle = null;
+        private GUIStyle scrollStyle = null;
         private GUIStyle buttonStyle = null;
         private GUIStyle subButtonStyle = null;
 
@@ -30,6 +31,10 @@ namespace KerbalFeels
         {
             KFUtil.Log("KFGUI Constructor");
             guiStyle = new GUIStyle(HighLogic.Skin.window);
+
+            scrollStyle = new GUIStyle(guiStyle);
+            scrollStyle.contentOffset = new Vector2(5, -20);
+            scrollStyle.padding = new RectOffset(0, 0, 0, 0);
 
             buttonStyle = new GUIStyle(guiStyle);
             buttonStyle.fontSize = 20;
@@ -84,6 +89,9 @@ namespace KerbalFeels
                                     ShowKerbalDialog(val);
                                 }
                                 break;
+                            case "FEELS_LIST":
+                                DoFeelsList(val);
+                                break;
                             case "SECTION_START":
                                 GUILayout.BeginArea(sectionPosition, val, guiStyle);
                                 break;
@@ -91,7 +99,7 @@ namespace KerbalFeels
                                 GUILayout.EndArea();
                                 break;
                             case "SCROLL_START":
-                                scrollPos = GUILayout.BeginScrollView(scrollPos, guiStyle, GUILayout.Width(290), GUILayout.ExpandHeight(true));
+                                scrollPos = GUILayout.BeginScrollView(scrollPos, scrollStyle, GUILayout.Width(290), GUILayout.ExpandHeight(true));
                                 break;
                             case "SCROLL_END":
                                 GUILayout.EndScrollView();
@@ -99,27 +107,27 @@ namespace KerbalFeels
                             case "COURAGE":
                                 GUILayout.BeginHorizontal();
                                 GUILayout.Label("Courage:");
-                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 1, GUILayout.Width(150));
+                                GUILayout.HorizontalSlider(KFCalc.GetCourage(val), 0, 1, GUILayout.Width(150));
                                 GUILayout.EndHorizontal();
                                 break;
                             case "STUPIDITY":
                                 GUILayout.BeginHorizontal();
                                 GUILayout.Label("Stupidity:");
-                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 1, GUILayout.Width(150));
+                                GUILayout.HorizontalSlider(KFCalc.GetStupidity(val), 0, 1, GUILayout.Width(150));
                                 GUILayout.EndHorizontal();
                                 break;
                             case "SANITY":
                                 GUILayout.BeginHorizontal();
                                 GUILayout.Label("Sanity:");
-                                
-                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, Convert.ToSingle(KFConfig.BaseSanity), GUILayout.Width(150));
+
+                                GUILayout.HorizontalSlider(Convert.ToSingle(KFCalc.GetSanity(val)), 0, Convert.ToSingle(KFConfig.BaseSanity), GUILayout.Width(150));
                                 GUILayout.EndHorizontal();
                                 break;
                         }
                     }
 
 
-                    if (GUILayout.Button("Ok", buttonStyle, GUILayout.ExpandWidth(true)))//GUILayout.Button is "true" when clicked
+                    if (GUILayout.Button("Ok", buttonStyle, GUILayout.ExpandWidth(true)))
                     {
                         if (buttonClickFunc == null)
                             Hide();
@@ -213,9 +221,33 @@ namespace KerbalFeels
             ShowGuiDialog(ButtonList.ToArray());
 
             if (v != null)
-                SetTitle(_defaultTitle + ": " + v.name);
+                SetTitle(_defaultTitle + ": " + v.vesselName);
 
             return ButtonList.Count == 3;
+        }
+
+        private void DoFeelsList(string name)
+        {
+            KFUtil.Log("DoFeelsList");
+            ProtoCrewMember member = HighLogic.CurrentGame.CrewRoster.Crew.First(x => x.name == name);
+            if (member != null)
+            {
+                var FeelsList = KFCalc.GetAllFeels(member);
+                scrollPos = GUILayout.BeginScrollView(scrollPos, scrollStyle, GUILayout.Width(290), GUILayout.ExpandHeight(true));
+
+                GUILayout.Label(KFUtil.GetFirstName(name) + " is");
+                if (FeelsList.Count > 0)
+                {
+                    foreach (KeyValuePair<string, Feels> item in FeelsList)
+                    {
+                        string str = KFUtil.GetFeelsString(item.Value);
+
+                        GUILayout.Label(String.Format("{1} {0}", item.Key, str));
+                    }
+                }
+                else GUILayout.Label("indifferent towards everybody.");
+                GUILayout.EndScrollView();
+            }
         }
 
         public void ShowKerbalDialog(string name)
@@ -230,37 +262,24 @@ namespace KerbalFeels
 
                 var strs = new List<KeyValuePair<string, string>>();
 
-                strs.Add(new KeyValuePair<string, string>(sanity.ToString(), "SANITY"));
-                strs.Add(new KeyValuePair<string, string>(member.courage.ToString(), "COURAGE"));
-                strs.Add(new KeyValuePair<string, string>(member.stupidity.ToString(), "STUPIDITY"));
-
-                if (FeelsList.Count > 0)
+                strs.Add(new KeyValuePair<string, string>(member.name, "SANITY"));
+                strs.Add(new KeyValuePair<string, string>(member.name, "COURAGE"));
+                strs.Add(new KeyValuePair<string, string>(member.name, "STUPIDITY"));
+                strs.Add(new KeyValuePair<string, string>(member.name, "FEELS_LIST"));
+                /*if (FeelsList.Count > 0)
                 {
                     strs.Add(new KeyValuePair<string, string>("150", "SCROLL_START"));
                     foreach (KeyValuePair<string, Feels> item in FeelsList)
                     {
-                        string str;
-                        switch (item.Value.Type)
-                        {
-                            case FeelingTypes.Indifferent:
-                                str = "Indifferent";
-                                if (item.Value.Number > 0) str += String.Format(" ({0})", new String('+', Convert.ToInt32(Math.Ceiling(item.Value.Number / 4))));
-                                else if (item.Value.Number < 0) str += String.Format(" ({0})", new String('-', Convert.ToInt32(Math.Ceiling(Math.Abs(item.Value.Number) / 4))));
-                                break;
-                            case FeelingTypes.InLove:
-                                str = "In Love";
-                                break;
-                            default:
-                                str = item.Value.Type.ToString();
-                                break;
-                        }
+                        string str = KFUtil.GetFeelsString(item.Value);
+                        
                         strs.Add(new KeyValuePair<string, string>(String.Format("{0}: {1}", item.Key, str), "TEXT"));
                     }
                     strs.Add(new KeyValuePair<string, string>("", "SCROLL_END"));
                 }
                 else
                     strs.Add(new KeyValuePair<string, string>(String.Format("{0} has no feelings towards any other kerbals.", name), "TEXT"));
-
+                */
                 ShowGuiDialog(strs.ToArray());
 
                 SetTitle(_defaultTitle + ": " + name);

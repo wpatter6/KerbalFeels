@@ -50,32 +50,36 @@ namespace KerbalFeels
             return GetFirstName(crewMember.name);
         }
 
+        public static string GetFeelsString(Feels feel)
+        {
+            switch (feel.Type)
+            {
+                case FeelingTypes.InLove:
+                    return "in love with";
+                case FeelingTypes.Indifferent:
+                    var pstr = new String(feel.Number < 0 ? '-' : '+', Convert.ToInt32(Math.Ceiling(Math.Abs(feel.Number) / 4)));
+                    return feel.Type.ToString().ToLower() + pstr + " towards";
+                case FeelingTypes.Playful:
+                case FeelingTypes.Hateful:
+                    return feel.Type.ToString().ToLower() + " towards";
+                case FeelingTypes.Inspired:
+                case FeelingTypes.Annoyed:
+                    return feel.Type.ToString().ToLower() + " by";
+                case FeelingTypes.Scared:
+                    return "scared of";
+                default:
+                    return "indifferent towards";
+            }
+        }
+
+
         public static string GetFeelsChangeText(FeelsChange change)
         {
             String str = String.Format("{0} likes {1} {2}", change.NewFeel.CrewMember, change.NewFeel.ToCrewMember, GetFeelsChangeBasicText(change.TotalChange));;
 
             if (Math.Abs(change.NewFeel.Number - change.TotalChange) < KFConfig.FeelThreshold && change.NewFeel.Number > KFConfig.FeelThreshold)
             {
-                str += " and is now ";
-                switch (change.NewFeel.Type)
-                {
-                    case FeelingTypes.InLove:
-                        str += "in love with ";
-                        break;
-                    case FeelingTypes.Playful:
-                    case FeelingTypes.Hateful:
-                    case FeelingTypes.Indifferent:
-                        str += change.NewFeel.Type.ToString().ToLower() + " towards ";
-                        break;
-                    case FeelingTypes.Inspired:
-                    case FeelingTypes.Annoyed:
-                        str += change.NewFeel.Type.ToString().ToLower() + " by ";
-                        break;
-                    case FeelingTypes.Scared:
-                        str += "scared of ";
-                        break;
-                }
-                str += "them.";
+                str += String.Format(" and is now {0} them.", GetFeelsString(change.NewFeel));
             }
             else str += ".";
             return str;

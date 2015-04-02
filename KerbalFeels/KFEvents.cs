@@ -90,7 +90,7 @@ namespace KerbalFeels
         #region vessel situations
         private void VesselOnLand(Vessel data0, CelestialBody data1)
         {
-            KFUtil.Log("VesselOnOrbit");
+            KFUtil.Log("VesselOnLand");
             foreach (ProtoCrewMember member in data0.GetVesselCrew())
             {
                 KFCalc.AddSanity(member, KFConfig.VesselLandSanityBonus);
@@ -100,10 +100,10 @@ namespace KerbalFeels
         private void VesselOnOrbit(Vessel data0, CelestialBody data1)
         {
             KFUtil.Log("VesselOnOrbit");
-            foreach (ProtoCrewMember member in data0.GetVesselCrew())
-            {
-                KFCalc.AddSanity(member, KFConfig.VesselOrbitSanityBonus);
-            }
+            //foreach (ProtoCrewMember member in data0.GetVesselCrew())
+            //{
+            //    KFCalc.AddSanity(member, KFConfig.VesselOrbitSanityBonus);
+            //}
         }
 
         private void VesselOnEscape(Vessel data0, CelestialBody data1)
@@ -148,6 +148,13 @@ namespace KerbalFeels
         private void OnProgressComplete(ProgressNode data)
         {
             KFUtil.Log("OnProgressComplete");
+            if(FlightGlobals.ActiveVessel != null)
+            {
+                foreach (ProtoCrewMember member in FlightGlobals.ActiveVessel.GetVesselCrew())
+                {
+                    KFCalc.AddSanity(member, KFConfig.ProgressNodeBoost);
+                }
+            }
         }
 
         private void OnCrewOnEva(GameEvents.FromToAction<Part, Part> data)
@@ -193,6 +200,7 @@ namespace KerbalFeels
         private void OnKerbalStatusChange(ProtoCrewMember data0, ProtoCrewMember.RosterStatus data1, ProtoCrewMember.RosterStatus data2)
         {
             KFUtil.Log("OnKerbalStatusChange");
+            KFUtil.Log(data1.ToString() + " > " + data2.ToString());
             if (data2 == ProtoCrewMember.RosterStatus.Dead || data2 == ProtoCrewMember.RosterStatus.Missing)
             {
                 KFDeath.DoDeath(data0);
