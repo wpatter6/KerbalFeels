@@ -101,13 +101,6 @@ namespace KerbalFeels
                 return Convert.ToDouble(GetValue("BadSanityModifier"));
             }
         }
-        public static double TotalSanityModifier
-        {
-            get
-            {
-                return Convert.ToDouble(GetValue("TotalSanityModifier"));
-            }
-        }
         public static double ProgressNodeBoost
         {
             get
@@ -134,6 +127,34 @@ namespace KerbalFeels
             get
             {
                 return Convert.ToDouble(GetValue("FeelThreshold"));
+            }
+        }
+        public static double VesselLandSanityBonus
+        {
+            get
+            {
+                return Convert.ToDouble(GetValue("VesselLandSanityBonus"));
+            }
+        }
+        public static double VesselOrbitSanityBonus
+        {
+            get
+            {
+                return Convert.ToDouble(GetValue("VesselOrbitSanityBonus"));
+            }
+        }
+        public static double VesselKerbinEscapeSanityLoss
+        {
+            get
+            {
+                return Convert.ToDouble(GetValue("VesselKerbinEscapeSanityLoss"));
+            }
+        }
+        public static double VesselFlyByBonus
+        {
+            get
+            {
+                return Convert.ToDouble(GetValue("VesselFlyByBonus"));
             }
         }
         public static float StupidityDivisor
@@ -164,13 +185,6 @@ namespace KerbalFeels
                 return Convert.ToSingle(GetValue("CourageChange"));
             }
         }
-        public static float RandomMultiplier
-        {
-            get
-            {
-                return Convert.ToSingle(GetValue("RandomMultiplier"));
-            }
-        }
         public static float PersonalityMultiplier
         {
             get
@@ -197,16 +211,18 @@ namespace KerbalFeels
         {
             get
             {
-                return KFUtil.GetConfigNode("CREW");
+                return KFConfig.GetCurrentGameConfigNode("CREW");
             }
         }
         public static ConfigNode FlightNode
         {
             get
             {
-                return KFUtil.GetConfigNode("FLIGHTS");
+                return KFConfig.GetCurrentGameConfigNode("FLIGHTS");
             }
         }
+
+        public static ApplicationLauncherButton AppButton = null;
         #endregion
 
         #region default values
@@ -248,6 +264,7 @@ namespace KerbalFeels
 
         public static void Init()
         {
+            KFUtil.Log("KFConfig.Init");
             if (File.Exists<KFStartup>("KF_Constants.cfg"))
             {
                 try
@@ -267,8 +284,10 @@ namespace KerbalFeels
 
         }
 
+        #region config file util
         public static object SetValue(string valueName, object value)
         {
+            KFUtil.Log("KFConfig.SetValue");
             if (config.HasValue(valueName)) config.SetValue(valueName, value.ToString());
             else config.AddValue(valueName, value);
             config.Save(IOUtils.GetFilePathFor(typeof(KFConfig), "KF_Constants.cfg"));
@@ -277,7 +296,52 @@ namespace KerbalFeels
 
         public static string GetValue(string valueName)
         {
+            KFUtil.Log("KFConfig.GetValue");
             return config.HasValue(valueName) ? config.GetValue(valueName) : null;
         }
+        #endregion
+
+        #region ConfigNode utilities
+        public static ConfigNode GetConfigNode(ConfigNode parent, String name)
+        {
+            //KFUtil.Log("GetConfigNode");
+            if (parent.HasNode(name))
+                return parent.GetNode(name);
+            return parent.AddNode(name);
+        }
+
+        public static ConfigNode GetCurrentGameConfigNode(String name)
+        {
+            KFUtil.Log("GetCurrentGameConfigNode");
+            var feelsNode = new ConfigNode("FEELS");
+
+            if (HighLogic.CurrentGame != null && HighLogic.CurrentGame.config != null)
+                if (HighLogic.CurrentGame.config.HasNode("FEELS"))
+                    feelsNode = HighLogic.CurrentGame.config.GetNode("FEELS");
+                else
+                    feelsNode = HighLogic.CurrentGame.config.AddNode("FEELS");
+
+            if (feelsNode.HasNode(name))
+                return feelsNode.GetNode(name);
+            else
+                return feelsNode.AddNode(name);
+        }
+
+        public static void SetCurrentGameConfigNode(String name, ConfigNode node)
+        {
+            KFUtil.Log("SetCurrentGameConfigNode");
+            var feelsNode = new ConfigNode();
+            if (HighLogic.CurrentGame.config.HasNode("FEELS"))
+                feelsNode = HighLogic.CurrentGame.config.GetNode("FEELS");
+            else
+                feelsNode = HighLogic.CurrentGame.config.AddNode("FEELS");
+
+            if (feelsNode.HasNode(name))
+                feelsNode.RemoveNode(name);
+
+            var newNode = feelsNode.AddNode(name);
+            newNode.AddData(node);
+        }
+        #endregion
     }
 }

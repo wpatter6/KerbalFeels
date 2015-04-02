@@ -10,3 +10,4 @@ C:\Users\Home\Dropbox\KSP Mod\KerbalFeels\KerbalFeels\bin\Debug\Assembly-CSharp.
 C:\Users\Home\Dropbox\KSP Mod\KerbalFeels\KerbalFeels\bin\Debug\UnityEngine.dll
 C:\Users\Home\Dropbox\KSP Mod\KerbalFeels\KerbalFeels\obj\Debug\KerbalFeels.dll
 C:\Users\Home\Dropbox\KSP Mod\KerbalFeels\KerbalFeels\obj\Debug\KerbalFeels.pdb
+C:\Users\Home\Dropbox\KSP Mod\KerbalFeels\KerbalFeels\obj\Debug\KerbalFeels.csprojResolveAssemblyReference.cache

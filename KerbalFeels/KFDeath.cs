@@ -10,13 +10,14 @@ namespace KerbalFeels
     {
         public static void DoSuicide(ProtoCrewMember member, Vessel vessel)
         {
+            KFUtil.Log("DoSuicide");
             new KFGUI().ShowGuiDialog(String.Format("{0} committed suicide!",  member.name));
             member.Die();
         }
 
         public static void DoMurder(ProtoCrewMember attacker, ProtoCrewMember victim, Vessel vessel)
         {
-            
+            KFUtil.Log("DoMurder");
             var text = new List<String>();
             var number = 0.0;
             var verdict = KFCalc.CaluclateMurderVerdict(attacker, victim, vessel, ref number);
@@ -48,6 +49,7 @@ namespace KerbalFeels
 
         public static void DoDeath(ProtoCrewMember deceased, Vessel vessel = null)
         {
+            KFUtil.Log("DoDeath");
             foreach (ProtoCrewMember member in HighLogic.CurrentGame.CrewRoster.Crew)
             {
                 if (member == deceased) continue;

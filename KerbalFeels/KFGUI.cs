@@ -8,24 +8,18 @@ namespace KerbalFeels
 {
     class KFGUI
     {
+        private bool _hidden = true;
         private const int _queuePosition = 98;
         private const string _defaultTitle = "Kerbal Feels";
         private const string _guiTextKey = "FEELS_GUI_TEXT";
 
-        private string _guiTextKeyUnique
-        {
-            get
-            {
-                return String.Format("{0}_{1}", _guiTextKey, _guiUID.ToString());
-            }
-        }
+        private string _guiTextKeyUnique;
 
         private Rect windowPosition = new Rect(150, 150, 307, 300);
         private Rect sectionPosition = new Rect(0, 0, 300, 200);
 
-        private Guid _guiUID;
-
         private GUIStyle guiStyle = null;
+        private GUIStyle LabelStyle = null;
         private GUIStyle buttonStyle = null;
         private GUIStyle subButtonStyle = null;
 
@@ -34,6 +28,7 @@ namespace KerbalFeels
 
         public KFGUI()
         {
+            KFUtil.Log("KFGUI Constructor");
             guiStyle = new GUIStyle(HighLogic.Skin.window);
 
             buttonStyle = new GUIStyle(guiStyle);
@@ -46,13 +41,17 @@ namespace KerbalFeels
             subButtonStyle.alignment = TextAnchor.MiddleLeft;
             subButtonStyle.clipping = TextClipping.Overflow;
 
-            _guiUID = Guid.NewGuid();
+            LabelStyle = new GUIStyle();
+            LabelStyle.alignment = TextAnchor.MiddleRight;
+
+            _guiTextKeyUnique = String.Format("{0}_{1}", _guiTextKey, Guid.NewGuid().ToString());
         }
 
         private void OnDrawGUI()
         {
+            if (_hidden) return;
             var title = _defaultTitle;
-            var text = HighLogic.CurrentGame.config.GetNode(_guiTextKeyUnique);
+            var text = KFConfig.GetConfigNode(HighLogic.CurrentGame.config, _guiTextKeyUnique);
             if (text.HasNode("TITLE"))
             {
                 title = text.GetNode("TITLE").GetValue("value");
@@ -63,6 +62,7 @@ namespace KerbalFeels
 
         private void FeelsWindowGUI(int WindowID)
         {
+            if (_hidden) return;
             if (HighLogic.CurrentGame.config.HasNode(_guiTextKeyUnique))
             {
                 var text = HighLogic.CurrentGame.config.GetNode(_guiTextKeyUnique);
@@ -99,19 +99,20 @@ namespace KerbalFeels
                             case "COURAGE":
                                 GUILayout.BeginHorizontal();
                                 GUILayout.Label("Courage:");
-                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 1);
+                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 1, GUILayout.Width(150));
                                 GUILayout.EndHorizontal();
                                 break;
                             case "STUPIDITY":
                                 GUILayout.BeginHorizontal();
                                 GUILayout.Label("Stupidity:");
-                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 1);
+                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 1, GUILayout.Width(150));
                                 GUILayout.EndHorizontal();
                                 break;
                             case "SANITY":
                                 GUILayout.BeginHorizontal();
                                 GUILayout.Label("Sanity:");
-                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, 50);
+                                
+                                GUILayout.HorizontalSlider(Convert.ToSingle(val), 0, Convert.ToSingle(KFConfig.BaseSanity), GUILayout.Width(150));
                                 GUILayout.EndHorizontal();
                                 break;
                         }
@@ -134,6 +135,7 @@ namespace KerbalFeels
 
         public void SetTitle(string title = "")
         {
+            KFUtil.Log("SetTitle");
             if (HighLogic.CurrentGame.config.HasNode(_guiTextKeyUnique))
             {
                 var text = HighLogic.CurrentGame.config.GetNode(_guiTextKeyUnique);
@@ -183,6 +185,7 @@ namespace KerbalFeels
 
                 KFUtil.Log("RenderingManager.AddToPostDrawQueue");
                 //KFUtil.Log(node);
+                _hidden = false;
                 RenderingManager.AddToPostDrawQueue(_queuePosition, OnDrawGUI);
             }
         }
@@ -194,26 +197,30 @@ namespace KerbalFeels
 
         public bool ShowCrewDialog(Vessel v)
         {
+            KFUtil.Log("ShowFullCrewDialog");
+
             var crew = HighLogic.CurrentGame.CrewRoster.Crew;
             if (v != null) crew = v.GetVesselCrew();
-            KFUtil.Log("ShowFullCrewDialog");
             List<KeyValuePair<string, string>> ButtonList = new List<KeyValuePair<string, string>>();
 
             ButtonList.Add(new KeyValuePair<string, string>("240", "SCROLL_START"));
-            foreach (ProtoCrewMember member in crew.Where(x => KFCalc.HasFeels(x)))
+            foreach (ProtoCrewMember member in crew)
             {
                 ButtonList.Add(new KeyValuePair<string, string>(member.name, "BUTTON"));
             }
-            ButtonList.Add(new KeyValuePair<string, string>("Any kerbals not listed are indifferent to all other kerbals.", "TEXT"));
             ButtonList.Add(new KeyValuePair<string, string>("", "SCROLL_END"));
 
             ShowGuiDialog(ButtonList.ToArray());
+
+            if (v != null)
+                SetTitle(_defaultTitle + ": " + v.name);
 
             return ButtonList.Count == 3;
         }
 
         public void ShowKerbalDialog(string name)
         {
+            KFUtil.Log("ShowKerbalDialog");
             ProtoCrewMember member = HighLogic.CurrentGame.CrewRoster.Crew.First(x => x.name == name);
 
             if (member != null)
@@ -250,10 +257,11 @@ namespace KerbalFeels
                         strs.Add(new KeyValuePair<string, string>(String.Format("{0}: {1}", item.Key, str), "TEXT"));
                     }
                     strs.Add(new KeyValuePair<string, string>("", "SCROLL_END"));
-                    ShowGuiDialog(strs.ToArray());
                 }
                 else
-                    ShowGuiDialog(String.Format("{0} has no feelings towards any other kerbals.", name));
+                    strs.Add(new KeyValuePair<string, string>(String.Format("{0} has no feelings towards any other kerbals.", name), "TEXT"));
+
+                ShowGuiDialog(strs.ToArray());
 
                 SetTitle(_defaultTitle + ": " + name);
                 buttonClickFunc = ShowCrewDialog;
@@ -262,10 +270,13 @@ namespace KerbalFeels
 
         public void Hide()
         {
+            KFUtil.Log("Hide");
+            _hidden = true;
+            RenderingManager.RemoveFromPostDrawQueue(_queuePosition, OnDrawGUI);
+            KFConfig.AppButton.SetFalse(false);
             if (HighLogic.CurrentGame.config.HasNode(_guiTextKeyUnique))
                 HighLogic.CurrentGame.config.RemoveNode(_guiTextKeyUnique);
 
-            RenderingManager.RemoveFromPostDrawQueue(_queuePosition, OnDrawGUI);
         }
     }
 }

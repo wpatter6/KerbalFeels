@@ -74,8 +74,8 @@ namespace KerbalFeels
                         memberToUpdate.stupidity -= stupidityChange;
                         memberToUpdate.experienceLevel -= expChange;
 
-                        if (removeMemberFromVessel)
-                            memberNode.RemoveNode(KFUtil.GetFirstName(memberToRemove));
+                        //if (removeMemberFromVessel)
+                        //    memberNode.RemoveNode(KFUtil.GetFirstName(memberToRemove));
                     }
                 }
             }
@@ -129,49 +129,32 @@ namespace KerbalFeels
             return GetFeels(crewMember1.name, crewMember2.name);
         }
 
-        public static Dictionary<String, Feels> GetAllFeels(ProtoCrewMember member)
+        public static List<KeyValuePair<string, Feels>> GetAllFeels(ProtoCrewMember member)
         {
-            Dictionary<String, Feels> dict = new Dictionary<string, Feels>();
-            var memberNode = new ConfigNode();
-            if (KFConfig.CrewNode.HasNode(KFUtil.GetFirstName(member)))
-            {
-                memberNode = KFConfig.CrewNode.GetNode(KFUtil.GetFirstName(member));
+            KFUtil.Log("GetAllFeels");
+            var dict = new List<KeyValuePair<string, Feels>>();
+            var memberNode = KFConfig.GetConfigNode(KFConfig.CrewNode, KFUtil.GetFirstName(member));
 
-                foreach (ConfigNode node in memberNode.nodes)
-                {
-                    dict.Add(node.name, GetFeels(member.name, node.name));
-                }
+            foreach (ConfigNode node in memberNode.nodes)
+            {
+                if(node.name != "DEATH")
+                    dict.Add(new KeyValuePair<string, Feels>(node.name, GetFeels(member.name, node.name)));
             }
             return dict;
         }
 
-        public static bool HasFeels(ProtoCrewMember member)
-        {
-            return KFConfig.CrewNode.HasNode(KFUtil.GetFirstName(member)) && KFConfig.CrewNode.GetNode(KFUtil.GetFirstName(member)).HasNode();
-        }
+        //public static bool HasFeels(ProtoCrewMember member)
+        //{
+        //    return KFConfig.CrewNode.HasNode(KFUtil.GetFirstName(member)) && KFConfig.CrewNode.GetNode(KFUtil.GetFirstName(member)).HasNode();
+        //}
         #endregion
 
         #region calculations
-        //returns a number between -x and x to indicate impact, may need tweaking
-        public static double CalculateCrewImpact(ProtoCrewMember crewMember1, ProtoCrewMember crewMember2, double sanity)
-        {
-            KFUtil.Log("CalculateCrewImpact");
-
-            Single intDiff = (Math.Abs(crewMember1.stupidity - crewMember2.stupidity) / KFConfig.StupidityDivisor * KFConfig.PersonalityMultiplier) - KFConfig.StupidityBalancer,//if number is positive, crewMember1 is smarter.  The bigger the difference the more negative impact
-                courageDiff = (crewMember1.courage - crewMember2.courage) / KFConfig.CourageDivisor * KFConfig.PersonalityMultiplier;//larger number more negative impact; smaller, positive
-
-            KFUtil.Log("intDiff: " + intDiff.ToString());
-            KFUtil.Log("courageDiff: " + courageDiff.ToString());
-
-            Double random = (Single)new Random().NextDouble();
-
-            var rnd = KFConfig.RandomMultiplier * KFConfig.SanityNumerator / sanity;
-
-            return random * (rnd * 2) - (rnd + courageDiff + intDiff) + (crewMember2.isBadass ? KFConfig.BadassAddition : 0);
-        }
-
+        #region sanity
+        //checks if sanity will trigger murder or suicide on a vessel
         public static bool DoSanityCheck(Vessel vessel)
         {
+            KFUtil.Log("DoSanityCheck");
             var crew = new List<ProtoCrewMember>(vessel.GetVesselCrew());
             var crew2 = new List<ProtoCrewMember>(crew);
             var burning = !FlightGlobals.ActiveVessel.acceleration.IsZero();
@@ -203,82 +186,74 @@ namespace KerbalFeels
             return false;
         }
 
-        public static FeelsChange DoFeelingChange(ProtoCrewMember crewMember1, ProtoCrewMember crewMember2, ConfigNode _crewNode, ConfigNode _memberNode, double sanity = double.MinValue, double flightDuration = double.MinValue, double staticValue = double.MinValue)
+        //calculates and returns the current sanity of the crew member
+        public static double CalculateSanity(ProtoCrewMember member, List<ProtoCrewMember> crew, List<Part> vesselParts, ConfigNode memberNode, double timeSpent)
         {
-            KFUtil.Log("CalculateAndSetFeelingChange");
+            KFUtil.Log("CalculateSanity");
+            int goodCount = 0, badCount = 0, totalCount = crew.Count;
+            double currentSanity = KFConfig.BaseSanity;
 
-            var feel = GetFeels(crewMember1, crewMember2);
-            var oldFeel = feel;
-            var change = staticValue;
-            if (staticValue == double.MinValue)
+            if (memberNode.HasValue("lastSanityCheck"))
             {
-                var impact = CalculateCrewImpact(crewMember1, crewMember2, sanity);
-
-                change = Math.Round(impact * (flightDuration / KFConfig.DurationDivisor), KFConfig.Precision);//impact * days
-
-                feel.Number += change;
-            }
-            else feel.Number = staticValue;
-
-            if (feel.Type == FeelingTypes.Indifferent)
-            {//if passed feeling threshold assign a random type
-                if (feel.Number > KFConfig.FeelThreshold)
-                {
-                    feel.Type = (FeelingTypes)(new Random().Next(2) + 1);
-                }
-                else if (feel.Number < KFConfig.FeelThreshold * -1)
-                {
-                    feel.Type = (FeelingTypes)((new Random().Next(2) + 1) * -1);
-                }
+                timeSpent = Math.Min(timeSpent, HighLogic.CurrentGame.UniversalTime - Convert.ToDouble(memberNode.GetValue("lastSanityCheck")));
+                memberNode.SetValue("lastSanityCheck", HighLogic.CurrentGame.UniversalTime.ToString());
             }
             else
+                memberNode.AddValue("lastSanityCheck", HighLogic.CurrentGame.UniversalTime.ToString());
+
+            foreach (ProtoCrewMember checkMember in crew)
             {
-                if (feel.Number <= KFConfig.FeelThreshold && feel.Number >= KFConfig.FeelThreshold * -1)
-                    feel.Type = FeelingTypes.Indifferent;
+                if (memberNode.HasNode(KFUtil.GetFirstName(checkMember)))
+                {
+                    var feel = Convert.ToInt32(memberNode.GetNode(KFUtil.GetFirstName(checkMember)).GetValue("type"));
+
+                    if (feel > 0) goodCount += feel;
+                    else if (feel < 0) badCount += 1;
+                }
             }
 
-            ConfigNode crewMemberNode = null, feelNode = null;
-
-            if (_crewNode.HasNode(KFUtil.GetFirstName(crewMember1)))
-                crewMemberNode = _crewNode.GetNode(KFUtil.GetFirstName(crewMember1));
+            var sanityDivisorBase = (totalCount * (member.courage + 1) + (goodCount * KFConfig.GoodSanityModifier) - (badCount * KFConfig.BadSanityModifier));
+            double sanityDivisor;
+            
+            if (sanityDivisorBase < -1)
+                sanityDivisor = 1 / Math.Abs(sanityDivisorBase);//this will cause sanity to drop very quickly if they get below -1...
+            else if (sanityDivisorBase > -1 && sanityDivisorBase < 1)
+                sanityDivisor = 1;
             else
-                crewMemberNode = _crewNode.AddNode(KFUtil.GetFirstName(crewMember1));
+                sanityDivisor = sanityDivisorBase;
 
-            if (crewMemberNode.HasNode(KFUtil.GetFirstName(crewMember2)))
-                feelNode = crewMemberNode.GetNode(KFUtil.GetFirstName(crewMember2));
-            else 
-                feelNode = crewMemberNode.AddNode(KFUtil.GetFirstName(crewMember2));
+            if (memberNode.HasValue("sanity"))
+                currentSanity = Convert.ToDouble(memberNode.GetValue("sanity"));
 
-            if (feelNode.HasValue("num"))
-                feelNode.RemoveValue("num");
-            feelNode.AddValue("num", feel.Number.ToString("G"));
+            var t = timeSpent / KFConfig.DurationDivisor;//this value equals one if divisor
 
-            if (feelNode.HasValue("type"))
-                feelNode.RemoveValue("type");
-            feelNode.AddValue("type", (int)feel.Type);
-
-            if (feelNode.HasValue("lastCheckTime"))
-                feelNode.RemoveValue("lastCheckTime");
-            feelNode.AddValue("lastCheckTime", HighLogic.CurrentGame.UniversalTime);
-
-            if (_memberNode.HasValue(KFUtil.GetFirstName(crewMember2)))
-            {
-                var num = Convert.ToDouble(_memberNode.GetValue(KFUtil.GetFirstName(crewMember2)));
-                change += num;
-                _memberNode.SetValue(KFUtil.GetFirstName(crewMember2), change.ToString());
-            }
-            else _memberNode.AddValue(KFUtil.GetFirstName(crewMember2), change);
-
-            return new FeelsChange(change, oldFeel, feel);
+            return Math.Min(Math.Max(currentSanity - t / sanityDivisor, KFConfig.MinSanity), KFConfig.BaseSanity);
         }
 
-        //Sets the kerbal's altered base stats based on who they're in a vessel with
+        public static double AddSanity(ProtoCrewMember member, double amount)
+        {
+            var memberNode = KFConfig.GetConfigNode(KFConfig.CrewNode, KFUtil.GetFirstName(member));
+            double currentSanity = KFConfig.BaseSanity;
+
+            if (memberNode.HasValue("sanity"))
+                currentSanity = Convert.ToDouble(memberNode.GetValue("sanity"));
+
+            currentSanity = Math.Min(currentSanity + amount, KFConfig.BaseSanity);
+
+            if (memberNode.HasValue("sanity"))
+                memberNode.SetValue("sanity", currentSanity.ToString());
+            else
+                memberNode.AddValue("sanity", currentSanity);
+
+            return currentSanity;
+        }
+        #endregion
+
+        #region feels effects
+        //Sets the kerbal's altered courage/stupidity/xp based on who they're in a vessel with
         public static void DetermineVesselCrewInfo(string vesselId, List<ProtoCrewMember> crew)
         {
             KFUtil.Log("DetermineVesselCrewInfo");
-            //var KFConfig.FlightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
-            //var KFConfig.CrewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
-
             ConfigNode flightInfo;
             if (KFConfig.FlightNode.HasNode(vesselId))
                 flightInfo = KFConfig.FlightNode.GetNode(vesselId);
@@ -375,14 +350,186 @@ namespace KerbalFeels
         {
             DetermineVesselCrewInfo(data.id.ToString(), data.GetVesselCrew());
         }
+        #endregion
 
-        //Calculate the values for crew members that were in vessel
-        public static void CalculateVesselChangedCrewInfo(String vesselId, List<ProtoCrewMember> crew)
+        #region feels calculation
+        //calculates and saves the feeling change on crewMember1 towards crewMember2
+        public static FeelsChange DoFeelingChange(ProtoCrewMember crewMember1, ProtoCrewMember crewMember2, ConfigNode _crewNode, ConfigNode _memberNode, double sanity = double.MinValue, double flightDuration = double.MinValue, double staticValue = double.MinValue)
         {
-            KFUtil.Log("CalculateVesselChangedCrewInfoDelta");
-            //var KFConfig.FlightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
-            //var KFConfig.CrewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
+            KFUtil.Log("DoFeelingChange");
+            var feel = GetFeels(crewMember1, crewMember2);
+            var oldFeel = feel;
+            var change = staticValue;
+            if (staticValue == double.MinValue)
+            {
+                var impact = CalculateCrewMemberImpact(crewMember1, crewMember2, sanity);
 
+                change = Math.Round(impact * (flightDuration / KFConfig.DurationDivisor), KFConfig.Precision);//impact * days
+
+                feel.Number += change;
+            }
+            else feel.Number = staticValue;
+
+            if (feel.Type == FeelingTypes.Indifferent)
+            {//if passed feeling threshold assign a random type
+                if (feel.Number > KFConfig.FeelThreshold)
+                {
+                    feel.Type = (FeelingTypes)(new Random().Next(2) + 1);
+                }
+                else if (feel.Number < KFConfig.FeelThreshold * -1)
+                {
+                    feel.Type = (FeelingTypes)((new Random().Next(2) + 1) * -1);
+                }
+            }
+            else
+            {
+                if (feel.Number <= KFConfig.FeelThreshold && feel.Number >= KFConfig.FeelThreshold * -1)
+                    feel.Type = FeelingTypes.Indifferent;
+            }
+
+            ConfigNode crewMemberNode = null, feelNode = null;
+
+            if (_crewNode.HasNode(KFUtil.GetFirstName(crewMember1)))
+                crewMemberNode = _crewNode.GetNode(KFUtil.GetFirstName(crewMember1));
+            else
+                crewMemberNode = _crewNode.AddNode(KFUtil.GetFirstName(crewMember1));
+
+            if (crewMemberNode.HasNode(KFUtil.GetFirstName(crewMember2)))
+                feelNode = crewMemberNode.GetNode(KFUtil.GetFirstName(crewMember2));
+            else
+                feelNode = crewMemberNode.AddNode(KFUtil.GetFirstName(crewMember2));
+
+            if (feelNode.HasValue("num"))
+                feelNode.RemoveValue("num");
+            feelNode.AddValue("num", feel.Number.ToString("G"));
+
+            if (feelNode.HasValue("type"))
+                feelNode.RemoveValue("type");
+            feelNode.AddValue("type", (int)feel.Type);
+
+            if (feelNode.HasValue("lastCheckTime"))
+                feelNode.RemoveValue("lastCheckTime");
+            feelNode.AddValue("lastCheckTime", HighLogic.CurrentGame.UniversalTime);
+
+            if (_memberNode.HasValue(KFUtil.GetFirstName(crewMember2)))
+            {
+                var num = Convert.ToDouble(_memberNode.GetValue(KFUtil.GetFirstName(crewMember2)));
+                change += num;
+                _memberNode.SetValue(KFUtil.GetFirstName(crewMember2), change.ToString());
+            }
+            else _memberNode.AddValue(KFUtil.GetFirstName(crewMember2), change);
+
+            return new FeelsChange(change, oldFeel, feel);
+        }
+        
+        //Calculate feels values for a single crew member towards members of the crew -- determines time span and return DoFeelingChange results
+        public static List<FeelsChange> CalculateCrewStats(ProtoCrewMember member, List<ProtoCrewMember> crew, ConfigNode _vesselNode, ConfigNode _crewNode, double sanity)
+        {
+            KFUtil.Log("CalculateCrewStats");
+            var memberNode = _vesselNode.HasNode(KFUtil.GetFirstName(member)) ? _vesselNode.GetNode(KFUtil.GetFirstName(member)) : _vesselNode.AddNode(KFUtil.GetFirstName(member));
+            var crewMemberNode = _crewNode.HasNode(KFUtil.GetFirstName(member)) ? _crewNode.GetNode(KFUtil.GetFirstName(member)) : _crewNode.AddNode(KFUtil.GetFirstName(member));
+
+            List<FeelsChange> FeelsChanges = new List<FeelsChange>();
+            foreach (ProtoCrewMember member2 in crew)
+            {
+                if (member == member2) continue;
+                var member2Node = _vesselNode.HasNode(KFUtil.GetFirstName(member2)) ? _vesselNode.GetNode(KFUtil.GetFirstName(member2)) : _vesselNode.AddNode(KFUtil.GetFirstName(member2));
+
+                double start1 = HighLogic.CurrentGame.UniversalTime, start2 = HighLogic.CurrentGame.UniversalTime, lastCheck = 0;
+                if (memberNode.HasValue("startTime"))
+                    start1 = Convert.ToDouble(memberNode.GetValue("startTime"));
+                if (member2Node.HasValue("startTime"))
+                    start2 = Convert.ToDouble(member2Node.GetValue("startTime"));
+
+                if (crewMemberNode.HasNode(KFUtil.GetFirstName(member2))
+                    && crewMemberNode.GetNode(KFUtil.GetFirstName(member2)).HasValue("lastCheckTime"))
+                    lastCheck = Convert.ToDouble(crewMemberNode.GetNode(KFUtil.GetFirstName(member2)).GetValue("lastCheckTime"));
+
+                double timeSpan = HighLogic.CurrentGame.UniversalTime - Math.Max(Math.Max(start1, start2), lastCheck);
+
+                FeelsChanges.Add(DoFeelingChange(member, member2, _crewNode, memberNode, sanity, timeSpan));
+            }
+            return FeelsChanges;
+        }
+
+        //Calculate feels values for all crew members in the vessel towards each other
+        public static List<FeelsChange> CalculateVesselCrewStats(String vesselId, List<ProtoCrewMember> crew, List<Part> vesselParts, bool removeVessel = false)
+        {
+            KFUtil.Log("CalculateVesselCrewStats");
+            var changes = new List<FeelsChange>();
+
+            if (KFConfig.FlightNode.HasNode(vesselId))
+            {
+                var vesselNode = KFConfig.FlightNode.GetNode(vesselId);
+                foreach (ProtoCrewMember member in crew)
+                {
+                    var vesselMemberNode = KFConfig.GetConfigNode(vesselNode, KFUtil.GetFirstName(member));
+                    var memberNode = KFConfig.GetConfigNode(KFConfig.CrewNode, KFUtil.GetFirstName(member));
+
+                    var timeSpent = HighLogic.CurrentGame.UniversalTime - Convert.ToDouble(vesselMemberNode.GetValue("startTime"));
+                    
+                    var sanity = CalculateSanity(member, new List<ProtoCrewMember>(crew), vesselParts, memberNode, timeSpent);
+
+                    changes.AddRange(CalculateCrewStats(member, new List<ProtoCrewMember>(crew), vesselNode, KFConfig.CrewNode, sanity));
+
+                    if (removeVessel)
+                    {
+                        memberNode.RemoveValue("sanity");
+                        memberNode.RemoveValue("lastSanityCheck");
+                    }
+                }
+
+                //KFConfig.CrewNode.Save(_crewDbSaveFileNameAndPath);
+
+                if (removeVessel)
+                {
+                    KFConfig.FlightNode.RemoveNode(vesselId);
+                    //KFConfig.FlightNode.Save(_flightsDbSaveFileNameAndPath);
+                }
+            }
+            return changes;
+        }
+
+        //Overload
+        public static List<FeelsChange> CalculateVesselCrewStats(Vessel data, bool removeVessel = false)
+        {
+            return CalculateVesselCrewStats(data.id.ToString(), data.GetVesselCrew(), data.parts, removeVessel);
+        }
+
+        //Overload
+        public static List<FeelsChange> CalculateVesselCrewStats(ProtoVessel data, bool removeVessel = false)
+        {
+            KFUtil.Log("CalculateVesselCrewStats (o2)");
+            List<Part> parts = new List<Part>();
+            foreach (ProtoPartSnapshot part in data.protoPartSnapshots)
+            {
+                parts.Add(part.partRef);
+            }
+
+            return CalculateVesselCrewStats(data.vesselID.ToString(), data.GetVesselCrew(), parts, removeVessel);
+        }
+        
+        //returns a number between -x and x to indicate impact of feelings from crewMember1 towards crewMember2, may need tweaking
+        public static double CalculateCrewMemberImpact(ProtoCrewMember crewMember1, ProtoCrewMember crewMember2, double sanity)
+        {
+            KFUtil.Log("CalculateCrewImpact");
+
+            Single intDiff = (Math.Abs(crewMember1.stupidity - crewMember2.stupidity) / KFConfig.StupidityDivisor * KFConfig.PersonalityMultiplier) - KFConfig.StupidityBalancer,//if number is positive, crewMember1 is smarter.  The bigger the difference the more negative impact
+                courageDiff = (crewMember1.courage - crewMember2.courage) / KFConfig.CourageDivisor * KFConfig.PersonalityMultiplier;//larger number more negative impact; smaller, positive
+
+            Double random = (Single)new Random().NextDouble();
+
+            var rnd = KFConfig.SanityNumerator / sanity;
+
+            return random * (rnd * 2) - (rnd + courageDiff + intDiff) + (crewMember2.isBadass ? KFConfig.BadassAddition : 0);
+        }
+        
+        //Calculate the feels values for crew members that were in vessel
+        public static void CalculateVesselChangedCrewInfo(Vessel vessel)
+        {
+            KFUtil.Log("CalculateVesselChangedCrewInfo");
+            String vesselId = vessel.id.ToString();
+            List<ProtoCrewMember> crew = vessel.GetVesselCrew();
             if (KFConfig.FlightNode.HasNode(vesselId))
             {
                 var vesselNode = KFConfig.FlightNode.GetNode(vesselId);
@@ -390,31 +537,16 @@ namespace KerbalFeels
                 foreach (ConfigNode node in vesselNode.nodes)
                 {
                     var crewMember = HighLogic.CurrentGame.CrewRoster.Crew.First(x => KFUtil.GetFirstName(x) == node.name);
-
-                    Double sanity;
-                    ConfigNode memberNode;
-
-                    if(KFConfig.CrewNode.HasNode(KFUtil.GetFirstName(crewMember)))
-                        memberNode = KFConfig.CrewNode.GetNode(KFUtil.GetFirstName(crewMember));
-                    else
-                        memberNode = KFConfig.CrewNode.AddNode(KFUtil.GetFirstName(crewMember));
-
+                    var memberNode = KFConfig.GetConfigNode(KFConfig.CrewNode, KFUtil.GetFirstName(crewMember));
                     var start = Convert.ToDouble(vesselNode.GetNode(KFUtil.GetFirstName(crewMember)).GetValue("startTime"));
-
-                    if (memberNode.HasValue("lastSanityCheck"))
-                    {
-                        start = Convert.ToDouble(memberNode.GetValue("lastSanityCheck"));
-                        memberNode.SetValue("lastSanityCheck", HighLogic.CurrentGame.UniversalTime.ToString());
-                    }
-                    else
-                        memberNode.AddValue("lastSanityCheck", HighLogic.CurrentGame.UniversalTime);
+                    Double sanity;
 
                     var timeSpent = HighLogic.CurrentGame.UniversalTime - start;
 
                     if (memberNode.HasValue("sanity"))
-                        memberNode.SetValue("sanity", (sanity = CalculateSanity(crewMember, crew, memberNode, timeSpent)).ToString());
+                        memberNode.SetValue("sanity", (sanity = CalculateSanity(crewMember, crew, vessel.parts, memberNode, timeSpent)).ToString());
                     else
-                        memberNode.AddValue("sanity", (sanity = CalculateSanity(crewMember, crew, memberNode, timeSpent)));
+                        memberNode.AddValue("sanity", (sanity = CalculateSanity(crewMember, crew, vessel.parts, memberNode, timeSpent)));
 
 
                     if (crewMember.rosterStatus != ProtoCrewMember.RosterStatus.Dead)
@@ -437,136 +569,21 @@ namespace KerbalFeels
                 {
                     vesselNode.RemoveNode(node.name);
                 }
-
-                //KFConfig.FlightNode.Save(_flightsDbSaveFileName);
-                //KFConfig.CrewNode.Save(_crewDbSaveFileNameAndPath);
             }
-        }
-
-        public static void CalculateVesselChangedCrewInfo(Vessel data)
-        {
-            CalculateVesselChangedCrewInfo(data.id.ToString(), data.GetVesselCrew());
-        }
-
-        //Calculate feels values for a single crew member
-        public static List<FeelsChange> CalculateCrewStats(ProtoCrewMember member, List<ProtoCrewMember> crew, ConfigNode _vesselNode, ConfigNode _crewNode, double sanity)
-        {
-            var memberNode = _vesselNode.HasNode(KFUtil.GetFirstName(member)) ? _vesselNode.GetNode(KFUtil.GetFirstName(member)) : _vesselNode.AddNode(KFUtil.GetFirstName(member));
-            List<FeelsChange> FeelsChanges = new List<FeelsChange>();
-            foreach (ProtoCrewMember member2 in crew)
-            {
-                if (member == member2) continue;
-                var member2Node = _vesselNode.HasNode(KFUtil.GetFirstName(member2)) ? _vesselNode.GetNode(KFUtil.GetFirstName(member2)) : _vesselNode.AddNode(KFUtil.GetFirstName(member2));
-
-                double start1 = HighLogic.CurrentGame.UniversalTime, start2 = HighLogic.CurrentGame.UniversalTime, lastCheck = 0;
-                if (memberNode.HasValue("startTime"))
-                    start1 = Convert.ToDouble(memberNode.GetValue("startTime"));
-                if (member2Node.HasValue("startTime"))
-                    start2 = Convert.ToDouble(member2Node.GetValue("startTime"));
-
-                if (_crewNode.HasNode(KFUtil.GetFirstName(member)) 
-                    && _crewNode.GetNode(KFUtil.GetFirstName(member)).HasNode(KFUtil.GetFirstName(member2))
-                    && _crewNode.GetNode(KFUtil.GetFirstName(member)).GetNode(KFUtil.GetFirstName(member2)).HasValue("lastCheckTime"))
-                    lastCheck = Convert.ToDouble(_crewNode.GetNode(KFUtil.GetFirstName(member)).GetNode(KFUtil.GetFirstName(member2)).GetValue("lastCheckTime"));
-
-                double timeSpan = HighLogic.CurrentGame.UniversalTime - Math.Max(Math.Max(start1, start2), lastCheck);
-
-                FeelsChanges.Add(DoFeelingChange(member, member2, _crewNode, memberNode, sanity, timeSpan));
-            }
-            return FeelsChanges;
-        }
-
-        //Calculate feels values for crew members in the vessel
-        public static List<FeelsChange> CalculateVesselCrewStats(String vesselId, List<ProtoCrewMember> crew, bool removeVessel = false)
-        {
-            KFUtil.Log("CalculateVesselCrewStats");
-            var changes = new List<FeelsChange>();
-            //var KFConfig.FlightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
-            //var KFConfig.CrewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
-
-            if (KFConfig.FlightNode.HasNode(vesselId))
-            {
-                var vesselNode = KFConfig.FlightNode.GetNode(vesselId);
-                var crew2 = new List<ProtoCrewMember>(crew);
-                var crew3 = new List<ProtoCrewMember>(crew);
-                foreach (ProtoCrewMember member in crew)
-                {
-                    var vesselMemberNode = vesselNode.GetNode(KFUtil.GetFirstName(member));
-                    KFUtil.Log("Calculating stats for " + KFUtil.GetFirstName(member));
-                    var timeSpent = HighLogic.CurrentGame.UniversalTime - Convert.ToDouble(vesselMemberNode.GetValue("startTime"));
-
-                    ConfigNode memberNode;
-
-                    if (KFConfig.CrewNode.HasNode(KFUtil.GetFirstName(member)))
-                        memberNode = KFConfig.CrewNode.GetNode(KFUtil.GetFirstName(member));
-                    else
-                        memberNode = KFConfig.CrewNode.AddNode(KFUtil.GetFirstName(member));
-
-                    var sanity = CalculateSanity(member, crew3, memberNode, timeSpent);
-
-                    changes.AddRange(CalculateCrewStats(member, crew2, vesselNode, KFConfig.CrewNode, sanity));
-
-                    if (removeVessel)
-                    {
-                        memberNode.RemoveValue("sanity");
-                        memberNode.RemoveValue("lastSanityCheck");
-                    }
-                }
-
-                //KFConfig.CrewNode.Save(_crewDbSaveFileNameAndPath);
-
-                if (removeVessel)
-                {
-                    KFConfig.FlightNode.RemoveNode(vesselId);
-                    //KFConfig.FlightNode.Save(_flightsDbSaveFileNameAndPath);
-                }
-            }
-            return changes;
-        }
-
-        public static List<FeelsChange> CalculateVesselCrewStats(Vessel data, bool removeVessel = false)
-        {
-            return CalculateVesselCrewStats(data.id.ToString(), data.GetVesselCrew(), removeVessel);
-        }
-
-        public static List<FeelsChange> CalculateVesselCrewStats(ProtoVessel data, bool removeVessel = false)
-        {
-            return CalculateVesselCrewStats(data.vesselID.ToString(), data.GetVesselCrew(), removeVessel);
         }
 
         public static void CalculateProgressFeelsBoost(Vessel vessel)
         {
             //TODO
+            KFUtil.Log("CalculateProgressFeelsBoost");
         }
+        #endregion
 
-        public static double CalculateSanity(ProtoCrewMember member, List<ProtoCrewMember> crew, ConfigNode memberNode, double timeSpent)
-        {
-            KFUtil.Log("CalculateSanity");
-            int goodCount = 0, badCount = 0, totalCount = crew.Count - 1;
-            double currentSanity = KFConfig.BaseSanity;
-            
-            foreach (ProtoCrewMember checkMember in crew)
-            {
-                if (memberNode.HasNode(KFUtil.GetFirstName(checkMember)))
-                {
-                    var feel = Convert.ToInt32(memberNode.GetNode(KFUtil.GetFirstName(checkMember)).GetValue("type"));
-
-                    if (feel > 0) goodCount += feel;
-                    else if (feel < 0) badCount += feel;
-                }
-            }
-
-            if (memberNode.HasValue("sanity"))
-                currentSanity = Convert.ToDouble(memberNode.GetValue("sanity"));
-
-            var t = Math.Min(timeSpent / KFConfig.DurationDivisor, KFConfig.MaxDuration);
-
-            return Math.Min(Math.Max(currentSanity - ((t + (badCount * KFConfig.BadSanityModifier) - (goodCount * KFConfig.GoodSanityModifier) - (totalCount * KFConfig.TotalSanityModifier)) * (1 / (member.courage + 1))), KFConfig.MinSanity), KFConfig.BaseSanity);
-        }
-
+        #region death
         //How much one crew member's death affects one crew member's stats
         public static void CalculateDeathEffects(ProtoCrewMember deceased, ProtoCrewMember living, bool isInVessel = false)
         {
+            KFUtil.Log("CalculateDeathEffects");
             bool isMissing = deceased.rosterStatus == ProtoCrewMember.RosterStatus.Missing;
 
             var memberNode = new ConfigNode();
@@ -615,6 +632,7 @@ namespace KerbalFeels
         //based on feelings towards defendant & victim
         public static VerdictTypes CaluclateMurderVerdict(ProtoCrewMember defendent, ProtoCrewMember victim, Vessel vessel, ref double verdict)
         {
+            KFUtil.Log("CaluclateMurderVerdict");
             var jury = vessel.GetVesselCrew();
             var vesselNode = KFConfig.FlightNode.HasNode(vessel.id.ToString()) ? KFConfig.FlightNode.GetNode(vessel.id.ToString()) : KFConfig.FlightNode.AddNode(vessel.id.ToString());
             var num = 0.0;
@@ -647,18 +665,18 @@ namespace KerbalFeels
         //Applies a little RNG as well as how strongly the verdict was one way or the other
         public static double GetMurderSentenceDuration(double number)
         {
+            KFUtil.Log("GetMurderSentenceDuration");
             return ((new Random().NextDouble() + 1) * 60 * 60 * 6 * number) + KFConfig.AverageMurderSentence;
         }
 
         //Check if effects of death have expired
         public static void CheckDeathEffects(ProtoCrewMember member)
         {
-            var memberNode = new ConfigNode();
-            if (KFConfig.CrewNode.HasNode(KFUtil.GetFirstName(member)))
-                memberNode = KFConfig.CrewNode.GetNode(KFUtil.GetFirstName(member));
+            var memberNode = KFConfig.GetConfigNode(KFConfig.CrewNode, KFUtil.GetFirstName(member));
 
             if (memberNode.HasNode("DEATH"))
             {
+                KFUtil.Log("CheckDeathEffects");
                 var changed = false;
                 var keepNodes = new List<ConfigNode>();
                 foreach (ConfigNode node in memberNode.GetNodes("DEATH"))
@@ -680,6 +698,7 @@ namespace KerbalFeels
                 }
             }
         }
+        #endregion
         #endregion
 
     }

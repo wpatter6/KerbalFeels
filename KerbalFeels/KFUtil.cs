@@ -37,7 +37,7 @@ namespace KerbalFeels
         }
         #endregion
 
-        #region general util
+        #region string util
         public static string GetFirstName(String name)
         {
             int ix = name.IndexOf(' ');
@@ -102,43 +102,7 @@ namespace KerbalFeels
             return text;
         }
 
-        public static ConfigNode GetConfigNode(String name)
-        {
-            var feelsNode = new ConfigNode("FEELS");
-
-            if (HighLogic.CurrentGame != null && HighLogic.CurrentGame.config != null)
-                if (HighLogic.CurrentGame.config.HasNode("FEELS"))
-                    feelsNode = HighLogic.CurrentGame.config.GetNode("FEELS");
-                else
-                    feelsNode = HighLogic.CurrentGame.config.AddNode("FEELS");
-
-            if (feelsNode.HasNode(name))
-                return feelsNode.GetNode(name);
-            else
-                return feelsNode.AddNode(name);
-        }
-
-        public static void SetConfigNode(String name, ConfigNode node)
-        {
-            var feelsNode = new ConfigNode();
-            if (HighLogic.CurrentGame.config.HasNode("FEELS"))
-                feelsNode = HighLogic.CurrentGame.config.GetNode("FEELS");
-            else
-                feelsNode = HighLogic.CurrentGame.config.AddNode("FEELS");
-
-            if (feelsNode.HasNode(name))
-                feelsNode.RemoveNode(name);
-
-            var newNode = feelsNode.AddNode(name);
-            newNode.AddData(node);
-        }
-        #endregion
-        
-        #region gui
-        
-
-        #endregion 
-        
+        #endregion        
     }
 
     public struct FeelsChange

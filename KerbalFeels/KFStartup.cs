@@ -12,7 +12,6 @@ namespace KerbalFeels
     class KFStartup : MonoBehaviour
     {
         bool _appLauncherInit = false;
-        ApplicationLauncherButton _appButton = null;
         KFGUI _gui;
 
         public void Awake()
@@ -34,7 +33,7 @@ namespace KerbalFeels
                 KFUtil.Log("OnGUIAppLauncherReady");
                 if (ApplicationLauncher.Ready)
                 {
-                    _appButton = ApplicationLauncher.Instance.AddModApplication(
+                    KFConfig.AppButton = ApplicationLauncher.Instance.AddModApplication(
                         onAppLaunchToggleOn,
                         onAppLaunchToggleOff,
                         onAppLaunchHoverOn,
@@ -49,13 +48,30 @@ namespace KerbalFeels
             }
         }
 
-        private void onAppLaunchDisable() { }
-        private void onAppLaunchEnable() { }
-        private void onAppLaunchHoverOff() { }
-        private void onAppLaunchHoverOn() { }
-        private void onAppLaunchToggleOff() { _gui.Hide();  }
-        private void onAppLaunchToggleOn() 
+        private void onAppLaunchDisable() 
         {
+            KFUtil.Log("onAppLaunchDisable");
+        }
+        private void onAppLaunchEnable() 
+        {
+            KFUtil.Log("onAppLaunchEnable");
+        }
+        private void onAppLaunchHoverOff() 
+        { 
+            KFUtil.Log("onAppLaunchHoverOff"); 
+        }
+        private void onAppLaunchHoverOn() 
+        { 
+            KFUtil.Log("onAppLaunchHoverOn"); 
+        }
+        private void onAppLaunchToggleOff()
+        {
+            KFUtil.Log("onAppLaunchToggleOff");
+            _gui.Hide();
+        }
+        private void onAppLaunchToggleOn()
+        {
+            KFUtil.Log("onAppLaunchToggleOn");
             _gui.ShowCrewDialog(FlightGlobals.ActiveVessel);
         }
     }

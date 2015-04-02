@@ -30,14 +30,14 @@ namespace KerbalFeels
             {
                 while (true)
                 {
+                    KFUtil.Log("RepeatingCheck iteration");
                     foreach (ProtoCrewMember member in HighLogic.CurrentGame.CrewRoster.Crew.Where(x => x.rosterStatus == ProtoCrewMember.RosterStatus.Assigned))
                     {
                         KFCalc.CheckDeathEffects(member);
                     }
                     if (FlightGlobals.ActiveVessel != null && !FlightGlobals.warpDriveActive)
                     {
-                        KFUtil.Log("RepeatingCheck iteration");
-
+                        KFUtil.Log("RepeatingCheck execute");
                         KFCalc.CalculateVesselChangedCrewInfo(FlightGlobals.ActiveVessel);
                         KFCalc.DetermineVesselCrewInfo(FlightGlobals.ActiveVessel);
 

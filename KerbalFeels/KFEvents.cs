@@ -21,6 +21,7 @@ namespace KerbalFeels
         }
         public void InitializeEvents()
         {
+            KFUtil.Log("InitializeEvents");
             if (_initialized) return;
             GameEvents.onGUIAstronautComplexSpawn.Add(new EventVoid.OnEvent(OnGUIAstronautComplexSpawn));
             GameEvents.onKerbalStatusChange.Add(new EventData<ProtoCrewMember, ProtoCrewMember.RosterStatus, ProtoCrewMember.RosterStatus>.OnEvent(OnKerbalStatusChange));
@@ -32,11 +33,16 @@ namespace KerbalFeels
             GameEvents.onGameStateSave.Add(new EventData<ConfigNode>.OnEvent(OnGameStateSave));
             GameEvents.onGameStateLoad.Add(new EventData<ConfigNode>.OnEvent(OnGameStateLoad));
             GameEvents.OnProgressComplete.Add(new EventData<ProgressNode>.OnEvent(OnProgressComplete));
-            
+            GameEvents.VesselSituation.onLand.Add(new EventData<Vessel, CelestialBody>.OnEvent(VesselOnLand));
+            GameEvents.VesselSituation.onOrbit.Add(new EventData<Vessel, CelestialBody>.OnEvent(VesselOnOrbit));
+            GameEvents.VesselSituation.onEscape.Add(new EventData<Vessel, CelestialBody>.OnEvent(VesselOnEscape));
+            GameEvents.VesselSituation.onFlyBy.Add(new EventData<Vessel, CelestialBody>.OnEvent(VesselOnFlyBy));
             _initialized = true;
         }
 
+
         #region event handlers
+        #region Game state
         private void OnGameStateLoad(ConfigNode data)
         {
             KFUtil.Log("OnGameStateLoad");
@@ -48,13 +54,13 @@ namespace KerbalFeels
                 if (feelsNode.HasNode("CREW"))
                 {
                     var crewNode = feelsNode.GetNode("CREW");
-                    KFUtil.SetConfigNode("CREW", crewNode);
+                    KFConfig.SetCurrentGameConfigNode("CREW", crewNode);
                     //crewNode.Save(_crewDbSaveFileNameAndPath);
                 }
                 if (feelsNode.HasNode("FLIGHTS"))
                 {
                     var flightsNode = feelsNode.GetNode("FLIGHTS");
-                    KFUtil.SetConfigNode("FLIGHTS", flightsNode);
+                    KFConfig.SetCurrentGameConfigNode("FLIGHTS", flightsNode);
 
                     //flightsNode.Save(_flightsDbSaveFileNameAndPath);
                 }
@@ -71,19 +77,60 @@ namespace KerbalFeels
 
             feelNode = data.AddNode("FEELS");
 
-            var crewNode = KFUtil.GetConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
+            var crewNode = KFConfig.GetCurrentGameConfigNode("CREW");//_crewDbSaveFileName, this.GetType());
             crewNode.name = "CREW";
-            var flightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
+            var flightNode = KFConfig.GetCurrentGameConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
             flightNode.name = "FLIGHTS";
 
             feelNode.AddNode(crewNode);
             feelNode.AddNode(flightNode);
         }
+        #endregion
+
+        #region vessel situations
+        private void VesselOnLand(Vessel data0, CelestialBody data1)
+        {
+            KFUtil.Log("VesselOnOrbit");
+            foreach (ProtoCrewMember member in data0.GetVesselCrew())
+            {
+                KFCalc.AddSanity(member, KFConfig.VesselLandSanityBonus);
+            }
+        }
+
+        private void VesselOnOrbit(Vessel data0, CelestialBody data1)
+        {
+            KFUtil.Log("VesselOnOrbit");
+            foreach (ProtoCrewMember member in data0.GetVesselCrew())
+            {
+                KFCalc.AddSanity(member, KFConfig.VesselOrbitSanityBonus);
+            }
+        }
+
+        private void VesselOnEscape(Vessel data0, CelestialBody data1)
+        {
+            KFUtil.Log("VesselOnEscape");
+            foreach (ProtoCrewMember member in data0.GetVesselCrew())
+            {
+                if(data1.name == "Kerbin")
+                    KFCalc.AddSanity(member, KFConfig.VesselKerbinEscapeSanityLoss);
+            }
+        }
+
+        private void VesselOnFlyBy(Vessel data0, CelestialBody data1)
+        {
+            KFUtil.Log("VesselOnFlyBy");
+            foreach (ProtoCrewMember member in data0.GetVesselCrew())
+            {
+                if (data1.name != "Sun")
+                    KFCalc.AddSanity(member, KFConfig.VesselFlyByBonus);
+            }
+        }
+        #endregion
 
         private void OnVesselGoOffRails(Vessel data)
         {
             KFUtil.Log("OnVesselGoOffRails");
-            var flightNode = KFUtil.GetConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
+            var flightNode = KFConfig.GetCurrentGameConfigNode("FLIGHTS");//_flightsDbSaveFileName, this.GetType());
 
             foreach (ProtoCrewMember member in data.GetVesselCrew())
             {
@@ -100,15 +147,12 @@ namespace KerbalFeels
 
         private void OnProgressComplete(ProgressNode data)
         {
-            
+            KFUtil.Log("OnProgressComplete");
         }
 
         private void OnCrewOnEva(GameEvents.FromToAction<Part, Part> data)
         {
             KFUtil.Log("OnCrewOnEva");
-
-            //data.to.addChild(new KFEvaModule());
-
             if (data.from != null && data.from.vessel != null)
                 KFCalc.CalculateVesselChangedCrewInfo(data.from.vessel);
         }
@@ -130,9 +174,10 @@ namespace KerbalFeels
         {
             KFUtil.Log("OnVesselRecoveryProcessing");
             var c = KFCalc.CalculateVesselCrewStats(data0, true);
-            //c.Sort((x, y) => x.NewFeel.CrewMember.CompareTo(y.NewFeel.CrewMember));
+            var strs = new List<string>();
 
-            List<string> strs = new List<string>();
+            c.Sort((x, y) => x.NewFeel.CrewMember.CompareTo(y.NewFeel.CrewMember));
+
 
             foreach (FeelsChange change in c)
             {
@@ -147,6 +192,7 @@ namespace KerbalFeels
 
         private void OnKerbalStatusChange(ProtoCrewMember data0, ProtoCrewMember.RosterStatus data1, ProtoCrewMember.RosterStatus data2)
         {
+            KFUtil.Log("OnKerbalStatusChange");
             if (data2 == ProtoCrewMember.RosterStatus.Dead || data2 == ProtoCrewMember.RosterStatus.Missing)
             {
                 KFDeath.DoDeath(data0);
